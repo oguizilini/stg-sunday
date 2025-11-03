@@ -1,0 +1,671 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/noUiSlider/nouislider.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/accordions.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/accordions.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_miscellaneous.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_miscellaneous.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/tagify/tagify.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/tagify/custom-tagify.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/tagify/custom-tagify.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/notification/snackbar/custom-snackbar.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/notification/snackbar/custom-snackbar.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/elements/alert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/elements/alert.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/modal.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/modal.css') }}">
+
+{% endblock %}
+
+{% block body %}
+    <body class="alt-menu layout-boxed">
+{% endblock%}
+
+{% block container %}
+
+<div class="layout-top-spacing">
+    <div class="page-title mt-3">
+        <div id="dadosEmpresa" style="display: none"></div>
+        <div id="dadosxls" style="display: none"></div>
+        <div id="dados_data-ini" style="display: none"></div>
+        <div id="dados_data-fim" style="display: none"></div>
+    </div>
+    <div class="row" id="cancel-row">
+        <div class="col-xl-12 col-lg-12 col-sm-12 ">
+                <div id="toggleAccordion" class="accordion">
+                    <div class="card">
+                        <div class="card-header" id="cardH'">
+                            <section class="mb-0 mt-0">
+                                <div role="menu" class="collapsed" data-bs-toggle="collapse" data-bs-target="#defaultAccordionOne" aria-expanded="true" aria-controls="defaultAccordionOne">
+                                    Pesquisa por Empresa  <div class="icons">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+
+                    <div id="defaultAccordionOne" class="accordion-collapse collapse show" aria-labelledby="cardH" data-bs-parent="#toggleAccordion">
+                        <div class="accordion-body" style="padding:0">
+
+                            <div class="widget-content-area br-4" style="padding: 0 8px;">
+                                <div class="widget-one">
+                                    <div class="row">
+                                        <div id="sizeDiv" class="col-xl-10">
+                                            <div class="form-group text-left">
+                                                <div class="row">
+                                                    <div class="col-xl-12 text-left">
+                                                        <label for="idempresa">Cliente:</label>
+                                                    </div>
+                                                    <div class="col-xl-12">
+                                                        <input name='idempresa' class='selectMode' placeholder="Selecione ou digite um Cliente" />
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-xl-2">
+                                            <label> </label>
+                                            <div class="form-group">
+
+                                                <button class="mt-0 mb-4 btn btn-primary mr-2 btn-lg" id="btnPesqClient" onclick="getRel.init()">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                        stroke-linejoin="round" class="feather feather-layers">
+                                                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                                        <polyline points="2 17 12 22 22 17"></polyline>
+                                                        <polyline points="2 12 12 17 22 12"></polyline>
+                                                    </svg>
+                                                    Pesquisar Registros
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button class="btn btn-success mb-2 mr-2" style='display: none;' id="btnExcel"
+                                        onclick="geraExcel.init()">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="feather feather-download">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                        Gerar Excel
+                                    </button>
+
+                                    <div id='alertUrlExcel' class="alert alert-icon-left alert-light-success alert-dismissible fade show mt-4 mb-4" role="alert" style="display: none;">
+                                        <button type="button" class="btn-close" onclick="this.parentElement.style.display='none'" aria-label="Close"> <svg xmlns="http://www.w3.org/2000/svg"  width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x close"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-alert-triangle"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12" y2="17"></line></svg>
+                                        <strong>Arquivo Gerado com Sucesso - Clique para fazer Download -></strong> <a id="linkxls" class='btn btn-primary' href="#">{{page}} XLS</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+
+            </div>
+        <div class="col-xl-12 col-lg-12 col-sm-12  layout-spacing">
+            <div class="widget-content widget-content-area br-6 p-0">
+                <div class="table-responsive mb-4">
+                    <form name='frm-example' id='frm_'>
+                        <script>
+                            const csrftoken = '';
+                            const thisPage = 'fontes_pagadoras';
+                        </script>
+                    </form>
+                    <link rel="stylesheet"
+                        href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+                        crossorigin="anonymous">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block import_js %}
+<style>
+li.disabled {
+    background-color: #1b4e9d00;
+}
+</style>
+<script src="{{ url_for('static', path='src/plugins/src/global/vendors.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/pt.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/input-mask/jquery.inputmask.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/button-ext/dataTables.buttons.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/tagify/tagify.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/bundle/bs5-toast.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/socket.io/socket.io.js') }}"></script>
+
+<script>
+    function arrumaData_MDA(x){
+        return x.split('-').reverse().join('-')}
+
+    $(document).ready(function () {
+        $("#date_ini").inputmask("99/99/9999");
+        $("#date_fim").inputmask("99/99/9999");
+        let url = parent.document.location.host;
+    });
+
+    // Cria um campo de seleção com autocompletar a partir de um input HTML
+    var input = document.querySelector('input[name=idempresa]');
+    // Define a lista de opções para o campo de seleção a partir de uma variável
+    tagify = new Tagify(input, {
+        enforceWhitelist: true,
+        mode : "select",
+        whitelist: [
+                        "EMPRESA FICTÍCIA LTDA | 12.345.678/0001-99"{% if empresas %},{% endif %}
+                        {% for cliente in empresas %}
+                        "{{ cliente.razao_social | upper }} | {{ cliente.cnpj }}"{% if not loop.last%},{% endif %}
+                        {% endfor %}
+                    ],
+        blacklist: ['foo', 'bar'],
+        dropdown : {
+            enabled       : 0,
+            maxItems      : 300,
+            placeAbove : false
+        }
+    })
+
+document.addEventListener('click', function(event) {
+  if (!tagify.DOM.scope.contains(event.target)) {
+    tagify.dropdown.hide();
+  }
+});
+
+// Adiciona eventos ao campo de seleção
+tagify.on('add', onAddTag)
+tagify.DOM.input.addEventListener('focus', onSelectFocus)
+
+function onAddTag(e){
+    $('#alertUrlExcel').hide();
+    showSwal();
+}
+
+function onSelectFocus(e){
+    $('#dadosEmpresa').text(e.target.innerText.replace(/"/g, ''));
+}
+
+async function showSwal() {
+    const timer = 1000;
+    const { value: timerValue } = await Swal.fire({
+        title: 'Atualizando!',
+        html: `Carregando o cliente em <b>${timer / 1000}</b> segundo.`,
+        timer: timer,
+        timerProgressBar: true,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        },
+    });
+    if (timerValue === undefined) {
+        // a janela do swal foi fechada antes do temporizador terminar
+        return;
+    }
+
+    // a janela do swal permaneceu aberta até que o temporizador tenha terminado
+    Swal.fire({
+        icon: 'success',
+        title: 'Cliente carregado!',
+        text: 'O cliente foi carregado com sucesso.',
+    });
+}
+
+{% include 'diretos/js_deleterow.html' %}
+
+    function exibirToast(mensagem, title,tempo, flag) {
+    new bs5.Toast({
+        header: `
+            <svg width="24" height="24" class="${flag} me-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h6 class="mb-0">${title}</h6>
+            <small class="ms-auto">${new Date().toLocaleTimeString()}</small>
+        `,
+        body: mensagem,
+        delay: tempo,
+        placement: 'bottom-left',
+    }).show();
+}
+
+    function getDataTable(dados) {
+        let arr = dados.split("|");
+        tagify.dropdown.show(arr[0]);
+    }
+
+    function int_to_milhar(n) {
+        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    var geraExcel = function () {
+        function getExcel() {
+            $('#alertUrlExcel').hide();
+
+            url = `/${thisPage}`;
+            const text =  $('#dadosEmpresa').text();
+            const partes = text.split(" | ");
+            const nomeEmpresa = partes[0];
+            const codigo = partes.length > 1 ? partes[1].replace(/"/g, '') : '';
+
+            if (!codigo) {
+                Swal.fire({
+                    title: `Selecione um Cliente`,
+                    html: 'É preciso selecionar o cliente',
+                    customClass: 'animated tada',
+                    padding: '2em'
+                })
+                return;
+            }
+
+            Swal.fire({
+                title: 'Deseja gerar o Excel?',
+                text: "Pode demorar, evite clicar mais de uma vez",
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                denyButtonColor: '#07911e',
+                confirmButtonText: 'Em EXCEL',
+                denyButtonText: `Em CSV`,
+                cancelButtonText: 'Cancelar'
+            })
+                .then((result) => {
+                    let tp = 'XLSX';
+                    if (result.isDenied) {
+                        tp = 'CSV';
+                    }
+
+                    if (result.isConfirmed || result.isDenied) {
+                        $('#btnExcel').prop('disabled', true);
+
+                        Swal.fire({
+                            imageUrl: "{{ url_for('static', path='src/assets/img/ai-loader.gif') }}",
+                            title: 'aguarde, pesquisando...',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            imageAlt: 'A tall image'
+                        })
+
+                        dadosxls_ = {
+                            'page': `${thisPage}`,
+                            'username': `gguilhem`,
+                            'email': ``,
+                            'idEmpresa': codigo,
+                            'base': codigo,
+                            'userId': `1`,
+                            'nomeEmpresa': nomeEmpresa,
+                            'tpdoc' : tp
+                        }
+
+                        $('#dadosxls').text(JSON.stringify(dadosxls_));
+
+                        const dadosxls = document.getElementById('dadosxls').innerText;
+
+                        let requestOptions = {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                "X-CSRFToken": csrftoken,
+                                "Authorization" : `Bearer ${window.localStorage.getItem('accessToken')}`
+                            },
+                            body: JSON.stringify({ 'post_data': `${dadosxls}` })
+                        };
+
+                        fetch(url, requestOptions)
+                        .then(response => response.text())
+                        .then(result => {
+                            try {
+                                    let dados = JSON.parse(result);
+                                    Swal.close();
+                                    $('#linkxls').attr('href', dados.msg)
+                                    $('#alertUrlExcel').show();
+                                    $('#refreshTable').click();
+
+                                    new bs5.Toast({
+                                        delay: 10000,
+                                        className: 'border-0 bg-success text-white',
+                                        btnCloseWhite: true,
+                                        placement: 'bottom-left',
+                                        header: `
+                                            <svg width="24" height="24" class="text-success me-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <p class="mb-0">${dados.data}</p>
+                                            `,
+                                        body: `<a href="${dados.msg}" style="color: green">clique aqui: ${thisPage}</a>`,
+                                    }).show()
+
+                            } catch (error) {
+                                Swal.fire({
+                                    title: `Erro ao gerar o Excel`,
+                                    html: 'Expirou o tempo, tente novamente',
+                                    customClass: 'animated tada',
+                                    padding: '2em'
+                                })
+                            }
+                            $('#btnExcel').prop('disabled', false);
+                        }).catch(error => console.log('error', error));
+                    }
+                })
+        }
+        return {
+            init: function () {
+                getExcel();
+            }
+        }
+    }();
+
+    function adicionarManipuladorBlur(elemento, mensagemErro, seletorFocus) {
+        elemento.input.addEventListener('blur', function() {
+            if (this.value.replace(/\D/g, '').length >= 8) {
+                if (!this.value || !isValidDate(this.value) || !isValidDate2(this.value)) {
+                    Swal.fire({
+                        title: 'Data Inválida',
+                        text: mensagemErro,
+                        showCancelButton: false,
+                        allowOutsideClick: false,
+                        confirmButtonColor: '#3085d6',
+                        confirmButtonText: 'Ok',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $(seletorFocus).focus();
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+
+    function isValidDate2(d) {
+        if(d){
+            let [dia, mes, ano] = d.split('/');
+            return verifyMes(parseInt(dia),parseInt(mes),parseInt(ano)); // Verificar se a data é válida em um ano bissexto
+        } else {
+            return false;
+        }
+    }
+
+    function verifyMes(day,month,year) {
+        const mes30 = [4,6,9,11]
+        const mes31 = [1,3,5,7,8,10,12]
+        if (mes30.includes(month) && day >= 31) {
+            return false;
+        }
+
+        else if (mes31.includes(month) && day >= 32) {
+            return false;
+        }
+
+        else {
+            return true;
+        }
+    }
+
+    function isValidDate(d) {
+        if(d){
+            let [dia, mes, ano] = d.split('/');
+            return isLeapYearDateValid(parseInt(dia),parseInt(mes),parseInt(ano)); // Verificar se a data é válida em um ano bissexto
+        } else {
+            return false;
+        }
+    }
+
+    function isLeapYearDateValid(day,month,year) {
+        // Verifica se o ano é bissexto
+        const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+        // Verifica se o dia é válido para fevereiro em um ano bissexto
+        if (isLeapYear && month === 2 && day > 29) return false;
+        // Verifica se o dia é válido para fevereiro em um ano não bissexto
+        else if (!isLeapYear && month === 2 && day > 28) return false;
+
+        return true;
+    }
+
+    var getRel = function () {
+        function getRelatorio() {
+            $('#alertUrlExcel').hide();
+            const text =  $('#dadosEmpresa').text();
+            const partes = text.split(" | ");
+            const nomeEmpresa = partes[0];
+            const codigo = partes.length > 1 ? partes[1].replace(/"/g, '') : '';
+
+            if (!codigo) {
+                Swal.fire({
+                    title: `Selecione um Cliente`,
+                    html: 'É preciso selecionar o cliente',
+                    customClass: 'animated tada',
+                    padding: '2em'
+                })
+                return;
+            }
+
+            $('#btnPesqClient').prop('disabled', true);
+
+            Swal.fire({
+                imageUrl: "{{ url_for('static', path='src/assets/img/ai-loader.gif') }}",
+                title: 'aguarde, pesquisando...',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                imageAlt: 'A tall image'
+            })
+
+            dadosxls_ = {
+                'page': `${thisPage}`,
+                'username': `gguilhem`,
+                'email': ``,
+                'idEmpresa': codigo,
+                'base': codigo,
+                'userId': `11`,
+                'nomeEmpresa': nomeEmpresa,
+                'tp': 1
+            }
+
+            $('#dadosxls').text(JSON.stringify(dadosxls_));
+
+            const dadosxls = document.getElementById('dadosxls').innerText;
+
+            url = `/${thisPage}`;
+
+            let requestOptions = {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    "X-CSRFToken": csrftoken,
+                    "Authorization" : `Bearer ${window.localStorage.getItem('accessToken')}`
+                },
+                body: JSON.stringify({ 'post_data': `${dadosxls}` })
+            };
+
+            fetch(url, requestOptions)
+            .then(response => response.text())
+            .then(result => {
+                let dados = JSON.parse(result);
+                Swal.close();
+                $('#btnPesqClient').prop('disabled', false);
+
+                if (dados.erro) {
+
+                    Swal.fire({
+                        title: `Total de Registros: ${int_to_milhar(dados.rst)}`,
+                        html: 'Não é possível gerar o arquivo em Excel <br> É preciso filtrar mais.',
+                        customClass: 'animated tada',
+                        padding: '2em'
+                    })
+
+                    $('#btnExcel').hide();
+
+                } else {
+
+                    if (dados.rst <= 0) {
+
+                        Swal.fire({
+                            title: `Total de Registros: ${int_to_milhar(dados.rst)}`,
+                            html: `Nenhum registro foi encontrado`,
+                            customClass: 'animated tada',
+                            padding: '2em'
+                        })
+                        $('#btnExcel').hide();
+
+                    }
+                    else {
+
+                        const text =  $('#dadosEmpresa').text();
+                        const partes = text.split(" | ");
+                        const nomeEmpresa = partes[0];
+                        const codigo = partes.length > 1 ? partes[1].replace(/"/g, '') : '';
+
+                        Swal.fire({
+                            title: `Total de Registros: ${int_to_milhar(dados.rst)}`,
+                            html: `${nomeEmpresa} <br> ${dados.data}`,
+                            padding: '2em'
+                        })
+
+                        $('#btnExcel').show();
+
+                        dadosxls_ = {
+                            'page': `${thisPage}`,
+                            'username': `gguilhem`,
+                            'email': ``,
+                            'idEmpresa': codigo,
+                            'base': codigo,
+                            'userId': `11`,
+                            'tamanho': dados.rst,
+                            'nomeEmpresa': nomeEmpresa,
+                        }
+
+                        $('#dadosxls').text(JSON.stringify(dadosxls_));
+
+                    }
+                }
+            })
+            .catch(error => console.log('error', error));
+        }
+        return {
+            init: function () {
+                getRelatorio();
+            }
+        }
+    }();
+
+    dadosxls_ = {
+        'page': `${thisPage}`,
+        'username': `gguilhem`,
+        'email': ``,
+        'userId': `11`
+    }
+
+    $('#dadosxls').text(JSON.stringify(dadosxls_));
+
+
+    tableRel.columns().every(function () {
+        var that = this;
+        $('#pesq_table').on('keyup change', function () {
+            if (that.search() !== this.value) {
+                that
+                    .search(this.value)
+                    .draw();
+            }
+        });
+    });
+
+    $('#vsb-main').addClass('col-xl-12');
+
+</script>
+<style>
+li.disabled {
+    background-color: #1b4e9d00;
+}
+
+/* fonte https://bs5-toast.vercel.app/ */
+
+body.dark .toast-header .btn-close {
+    box-sizing: content-box;
+    width: 1em;
+    height: 1em;
+    padding: 0.25em 0.25em;
+    color: #000;
+    background-color: #ffffff;
+    border: 0;
+    border-radius: 0.25rem;
+    opacity: .5;
+}
+
+body.dark .toast-body {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    color: #6c757d;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    border-top-left-radius: calc(0.25rem - 1px);
+    border-top-right-radius: calc(0.25rem - 1px);
+}
+body.dark .toast-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    color: #6c757d !important;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    border-top-left-radius: calc(0.25rem - 1px);
+    border-top-right-radius: calc(0.25rem - 1px);
+}
+.toast {
+    width: 350px;
+    max-width: 100%;
+    font-size: .875rem;
+    pointer-events: auto;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.1);
+    box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 15%);
+    border-radius: 0.25rem;
+}
+</style>
+{% endblock %}
+{% block urlWebSocket%}
++ '/api/trigger/ws/'
+{% endblock%}

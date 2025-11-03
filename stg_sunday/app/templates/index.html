@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/noUiSlider/nouislider.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/accordions.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/accordions.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_miscellaneous.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_miscellaneous.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/notification/snackbar/custom-snackbar.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/notification/snackbar/custom-snackbar.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/elements/alert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/elements/alert.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/modal.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/modal.css') }}">
+
+{% endblock %}
+
+{% block body %}
+    <body class="alt-menu layout-boxed">
+{% endblock%}
+
+{% block container %}
+
+<div class="layout-top-spacing">
+    <div class="page-title mt-3">
+        <div id="dadosxls" style="display: none"></div>
+    </div>
+    <div class="row" id="cancel-row">
+        <div class="col-xl-12 col-lg-12 col-sm-12 ">
+                <div id="toggleAccordion" class="accordion">
+                    <div class="card">
+                        <div class="card-header" id="cardH'">
+                            <section class="mb-0 mt-0">
+                                <div role="menu" class="collapsed" data-bs-toggle="collapse" data-bs-target="#defaultAccordionOne" aria-expanded="true" aria-controls="defaultAccordionOne">
+                                    Log do Sistema em tempo real  <div class="icons">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                    <div id="defaultAccordionOne" class="accordion-collapse collapse show" aria-labelledby="cardH" data-bs-parent="#toggleAccordion">
+                        <div class="accordion-body" style="padding:0">
+                            <div class="widget-content-area br-4" style="padding: 0 8px;">
+                                <div class="widget-one">
+                                  <div id="logs" class="timeline-line">
+                                    reading logs...
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+            </div>
+        <div class="col-xl-12 col-lg-12 col-sm-12  layout-spacing">
+            <div class="widget-content widget-content-area br-6 p-0">
+                <div class="table-responsive mb-4">
+                    <form name='frm-example' id='frm_'>
+                        <script>
+                            const csrftoken = '';
+                            const thisPage = 'limpa_base_pis_cofins';
+                        </script>
+                    </form>
+                    <link rel="stylesheet"
+                        href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+                        crossorigin="anonymous">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block import_js %}
+<style>
+li.disabled {
+    background-color: #1b4e9d00;
+}
+</style>
+<script src="{{ url_for('static', path='src/plugins/src/global/vendors.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/pt.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/input-mask/jquery.inputmask.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/button-ext/dataTables.buttons.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/socket.io/socket.io.js') }}"></script>
+{% endblock %}
+
+{% block urlWebSocket%}
++ '/api/trigger/ws/log/102030'
+{% endblock%}
+
+{% block scriptJS%}
+    if(e.data.search(":logs:")> -1){
+        var logs = document.getElementById("logs");
+        var log_data = e.data;
+        logs.innerHTML = log_data;
+    }
+{% endblock%}

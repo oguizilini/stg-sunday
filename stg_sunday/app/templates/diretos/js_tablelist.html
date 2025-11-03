@@ -1,0 +1,143 @@
+
+
+    var tableRel = $('#tablelist').DataTable({
+        "processing": true,
+        "deferRender": true,
+        "serverSide": false,
+        "bDestroy": true,
+        "bJQueryUI": true,
+        "language": {
+            processing: `<img src="{{ url_for('static', path='src/assets/img/ai-loader.gif') }}" alt="img"><span class="sr-only">Carregando...</span> `
+        },
+        "dom": "<'dt--top-section'<'row'<'col-sm-12 col-md-6 d-flex justify-content-md-start justify-content-center'B><'col-sm-12 col-md-6 d-flex justify-content-md-end justify-content-center mt-md-0 mt-3'f>>>" +
+            "<'table-responsive'tr>" +
+            "<'dt--bottom-section d-sm-flex justify-content-sm-between text-center'<'dt--pages-count  mb-sm-0 mb-3'i><'dt--pagination'p>>",
+        "oLanguage": {
+            "oPaginate": {
+                "sPrevious": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>', "sNext": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>'
+            },
+            "sSearch": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+            "sSearchPlaceholder": "Procure...",
+            "sProcessing": "Processando...",
+            "sLoadingRecords": "Carregando...",
+            "sZeroRecords": "Nenhum registro encontrado",
+            "sInfoEmpty": "Sem páginas",
+            "sInfo": "Mostrando página _PAGE_ de _PAGES_",
+            "sLengthMenu": "Results :  _MENU_",
+        },
+        "language": {
+            "url": 'https://cdn.datatables.net/plug-ins/1.11.3/i18n/pt_br.json',
+        },
+        "buttons": [
+                {
+                    text: 'Atualizar',
+                    className: 'btn btn-secondary toggle-vis mb-1',
+                    action: function (e, dt, node, config) {
+                        Swal.fire({
+                            title: 'Atualizando!',
+                            html: 'Aguarde, atualizando os dados...',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                                dt.ajax.reload(() => Swal.close());
+                            }
+                        });
+                    }
+                }
+            ],
+        "stripeClasses": [],
+        "lengthMenu": [7, 10, 20, 50],
+        "pageLength": 10,
+        "ajax": {
+            "url": "/lista_files_excel",
+            "contentType": "application/json; charset=utf-8",
+            "type": "POST",
+            "dataSrc": "",
+            "data": function (data) {
+                data.dados = $('#dadosxls').text();
+                return JSON.stringify(data);
+            }
+        },
+        "columns": [
+            { "data": "id" },
+            {
+                data: null,
+                defaultContent: '<i class="fa fa-pencil"/>',
+                'render': function (data, type, full, meta) {
+                    let x = `${full.cnpj_conta}|${full.data_ini}|${full.data_fim}|||`;
+                    return `<span><a class="btn btn-primary btn-xs p-0" onclick="getDataTable('${x}')"><i class="fa fa-edit"></i></a> `;
+                },
+                orderable: false
+            },
+            {
+                data: null,
+                defaultContent: '<i class="fa fa-trash"/>',
+                'render': function (data, type, full, meta) {
+                    return `<a class="btn btn-danger btn-xs p-0" onclick="deleteRow('${full.id}|${full.cnpj_conta}',${meta.row})"><i class="fa fa-trash"></i></a></span>`;
+                },
+                orderable: false
+            },
+            { "data": "id_user" },
+            { "data": "user_name" },
+            { "data": "email", },
+            {
+                data: 'nome_arquivo',
+                render: function (data, type) {
+                    return `<a href="/media/diretos/${data}" style="color: green">ArquivoXLS</a>`;
+                }
+            },
+            { "data": "cliente" },
+            { "data": "cnpj_conta" },
+            {
+                "data": "data_ini",
+                render: function (data, type) {
+                    if (data.length)
+                        return arrumaData_MDA(data)
+                    else
+                        return ""
+                }
+            },
+            {
+                "data": "data_fim",
+                render: function (data, type) {
+                    if (data.length)
+                        return arrumaData_MDA(data)
+                    else
+                        return ""
+                }
+            },
+            { "data": "cod_natureza" },
+            { "data": "cod_conta" },
+            { "data": "sheet" },
+            { "data": "tipo_relatorio" },
+
+            { "data": "total_registros" },
+            {
+                "data": "data_cadastrada",
+                render: function (data, type) {
+                    return new Date(data).toLocaleString();
+                }
+            },
+        ],
+        columnDefs: [
+            { targets: [0, 3, 4, 5, 11, 12, 13, 14], visible: false },
+        ],
+        order: [[0, 'desc']],
+    });
+
+    // corrige o bug conflito com ajax datatable
+    $('#tablelist_filter label input').attr('id', 'pesq_table');
+
+    tableRel.columns().every(function () {
+        var that = this;
+        $('#pesq_table').on('keyup change', function () {
+            if (that.search() !== this.value) {
+                that
+                    .search(this.value)
+                    .draw();
+            }
+        });
+    });
+
+

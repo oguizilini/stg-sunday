@@ -1,0 +1,647 @@
+{% extends 'base.html' %}
+
+{% block import_css %}
+<link href="{{ url_for('static', path='/src/plugins/src/apex/apexcharts.css') }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', path='/src/assets/css/light/dashboard/dash_1.css') }}" rel="stylesheet"
+    type="text/css" />
+<link href="{{ url_for('static', path='/src/assets/css/dark/dashboard/dash_1.css') }}" rel="stylesheet"
+    type="text/css" />
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/assets/css/dark/components/accordions.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/assets/css/light/components/accordions.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/src/noUiSlider/nouislider.min.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/scrollspyNav.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/light/flatpickr/custom-flatpickr.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/scrollspyNav.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/dark/flatpickr/custom-flatpickr.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/light/sweetalerts2/custom-sweetalert.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/dark/sweetalerts2/custom-sweetalert.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/light/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/dark/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/tagify/tagify.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/light/tagify/custom-tagify.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/dark/tagify/custom-tagify.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/assets/css/light/widgets/modules-widgets.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/assets/css/dark/widgets/modules-widgets.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/light/notification/snackbar/custom-snackbar.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', path='src/plugins/css/dark/notification/snackbar/custom-snackbar.css') }}">
+
+{% endblock %}
+
+{% block body %}
+
+<body class="alt-menu layout-boxed">
+    {% endblock%}
+
+    {% block container %}
+    <div class="layout-top-spacing row">
+
+        <input type="hidden" id="Url" data-url="{{ url_for('charts_client') }}" />
+        <div id="dadosxls" style="display: none"></div>
+
+        <div class="col-xl-12 col-lg-6 col-md-6 col-sm-6 col-12" style="padding-bottom: 5px;">
+            <div id="toggleAccordion" class="accordion">
+                <div class="card">
+                    <a href="{{ url_for('charts_client') }}" aria-expanded="false" class="dropdown-toggle">
+                        <div class="card-header" id="cardH'">
+                            <section class="mb-0 mt-0">
+                                <div role="menu" class="collapsed" data-bs-toggle="collapse"
+                                    data-bs-target="#defaultAccordionOne" aria-expanded="false"
+                                    aria-controls="defaultAccordionOne">
+                                    Pesquisa por Empresa - Geração de Gráficos. <div class="icons">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="feather feather-chevron-down">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </a>
+                </div>
+                <script>
+                    const csrftoken = '';
+                    window.localStorage.setItem('url', '{{url}}');
+                    window.localStorage.setItem('accessToken', '{{ token }}');
+                </script>
+            </div>
+        </div>
+        <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 layout-spacing">
+
+            <div class="widget widget-six"
+                style="background-image: linear-gradient(to right, rgba(139, 2, 87, 0.69) 0%, rgba(103, 19, 210, 0.8196078431) 100%);">
+                <div class="widget-heading">
+                    <h6>Sistema - <span id="free_api">{{usage_hd}}GB de uso - {{free_hd}}GB Livre - {{total_hd}} GB
+                            Total</span></h6>
+                    <div class="task-action">
+                        <div class="dropdown">
+                            <span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="feather feather-hard-drive">
+                                    <line x1="22" y1="12" x2="2" y2="12"></line>
+                                    <path
+                                        d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
+                                    </path>
+                                    <line x1="6" y1="16" x2="6.01" y2="16"></line>
+                                    <line x1="10" y1="16" x2="10.01" y2="16"></line>
+                                </svg>
+                            </span>
+                            <span id="timerSistema">...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-chart">
+                    <div class="w-chart-section">
+                        <div id="cpu_api"></div>
+                    </div>
+                    <div class="w-chart-section">
+                        <div id="ram_api"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 layout-spacing">
+            <div class="widget widget-six"
+                style="background-image: linear-gradient(to right, rgba(139, 2, 87, 0.69) 0%, rgba(103, 19, 210, 0.8196078431) 100%);">
+                <div class="widget-heading">
+                    <h6>Banco - <span id="free_mysql">{{usage_hd}}GB de uso - {{free_hd}}GB Livre - {{total_hd}} GB
+                            Total</span></h6>
+                    <div class="task-action">
+                        <div class="dropdown">
+                            <span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="feather feather-hard-drive">
+                                    <line x1="22" y1="12" x2="2" y2="12"></line>
+                                    <path
+                                        d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
+                                    </path>
+                                    <line x1="6" y1="16" x2="6.01" y2="16"></line>
+                                    <line x1="10" y1="16" x2="10.01" y2="16"></line>
+                                </svg>
+                            </span>
+                            <span id="timerMysql">...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-chart">
+                    <div class="w-chart-section">
+                        <div id="cpu_mysql"></div>
+                    </div>
+                    <div class="w-chart-section">
+                        <div id="ram_mysql"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12 layout-spacing">
+            <div class="row widget-statistic">
+                <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12 layout-spacing">
+                    <div class="widget widget-one_hybrid widget-followers">
+                        <div class="widget-heading">
+                            <div class="w-title">
+                                <div class="w-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="feather feather-layers">
+                                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                        <polyline points="2 17 12 22 22 17"></polyline>
+                                        <polyline points="2 12 12 17 22 12"></polyline>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="w-value"><span id="tot_reg"></span> </p>
+                                    <h5>Tot. Geral Registros</h5>
+                                </div>
+                                <div>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp
+                                </div>
+                                <div class="w-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="feather feather-image">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <polyline points="21 15 16 10 5 21"></polyline>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="w-value"><span id="tot_empresas"></span></p>
+                                    <h5>Empresas</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="widget-content">
+                            <div class="w-chart">
+                                <div id="hybrid_followers"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12 layout-spacing">
+                    <div class="widget widget-three">
+                        <div class="widget-heading">
+                            <h5>Top 5 Menos Registros</h5>
+                        </div>
+                        <div class="widget-content">
+                            <div class="order-summary" id='summary'>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block import_js %}
+    <script src="{{ url_for('static', path='src/plugins/src/global/vendors.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/flatpickr/pt.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/input-mask/jquery.inputmask.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', path='/src/plugins/src/apex/apexcharts.min.js') }}"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.4/raphael-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.2.9/justgage.min.js"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/tagify/tagify.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.js') }}"></script>
+
+    <script>
+        format = (data) => parseFloat(data).toLocaleString('tr-TR', { style: 'currency', currency: 'BRL' });
+        prepInput = (x) => x.val('').inputmask("99/99/9999").attr('placeholder', 'dia/mes/ano').prop("disabled", false);
+
+        function populateList(clist) {
+            $('#cnpj_filial').val('');
+            var input = document.querySelector('input[name="tags"]');
+
+            try {
+                tagify.destroy();
+                input.tagify('destroy');
+            }
+            catch (e) {
+                // console.log('tratando tagify nao existente');
+            }
+
+            tagify = new Tagify(input, {
+                enforceWhitelist: true,
+                whitelist: Object.keys(clist).map(function (key) { return clist[key].CNPJ_FILIAL }),
+                dropdown: {
+                    classname: "tags-look",
+                    enabled: 0,
+                    closeOnSelect: false,
+                    position: "text",
+                    highlightFirst: true
+                }
+            });
+        }
+
+        let get_combo = (base) => {
+            Swal.fire({
+                title: 'Atualizando!',
+                html: 'Carregando o cliente em <b></b> milissegundos.',
+                timer: 5000,
+                timerProgressBar: true,
+                didOpen: () => {
+                    Swal.showLoading()
+                    const b = Swal.getHtmlContainer().querySelector('b')
+                    timerInterval = setInterval(() => {
+                        b.textContent = Swal.getTimerLeft()
+                    }, 100)
+                },
+                willClose: () => {
+                    clearInterval(timerInterval)
+                }
+            })
+
+            const id = document.getElementById('idempresa');
+            const data_ini = $('#date_ini').val().replaceAll('/', '-');
+            const data_fim = $('#date_fim').val().replaceAll('/', '-');
+            const uf = $('#id_uf_cnpj').val();
+            let list_cnpj_filial = $('#cnpj_filial').val();
+
+            if (list_cnpj_filial.length > 0) {
+                list_cnpj_filial = JSON.parse($('#cnpj_filial').val()).map((x) => x.value).join(',');
+            }
+
+            let myHeaders = new Headers();
+            myHeaders.append("Authorization", `Bearer ${window.localStorage.getItem('accessToken')}`);
+
+            let requestOptions = {
+                method: 'GET',
+                headers: myHeaders,
+                redirect: 'follow'
+            };
+
+            fetch("https://stgapi.cf:8000/api/v1/clientes/get_combo_charts/" + id.value, requestOptions)
+                .then(response => response.text())
+                .then(result => {
+                    Swal.close();
+                    let dt = JSON.parse(result);
+                    size = Object.keys(dt.data_ini).length;
+
+                    if (size > 0) {
+                        populateList(Object.values(dt.cnpj_filial));
+
+                        $('#id_uf_cnpj option').remove();
+                        $('#id_uf_cnpj').append($('<option></option>').val('').html('-'));
+                        $.each(dt.uf, function (i, p) {
+                            $('#id_uf_cnpj').append($('<option></option>').val(p).html(p));
+                        });
+
+                        prepInput($("#date_ini"));
+                        prepInput($("#date_fim"));
+
+                        year_ini = new Date().getFullYear() - 10;
+                        year_fim = new Date().getFullYear();
+
+                        let datepicker_options = {
+                            enableTime: false,
+                            allowInput: true,
+                            dateFormat: "d/m/Y",
+                            minDate: `01.01.${year_ini}`
+                        };
+
+                        let datepicker_options_fim = {
+                            enableTime: false,
+                            allowInput: true,
+                            dateFormat: "d/m/Y",
+                            maxDate: "today"
+                        };
+
+                        flatpickr.localize(flatpickr.l10ns.pt);
+                        flatpickr(document.getElementById('date_ini'), datepicker_options);
+                        flatpickr(document.getElementById('date_fim'), datepicker_options_fim);
+
+                    }
+                    else {
+                        $("#date_ini").val('').attr('placeholder', 'Cliente sem registro').prop("disabled", true);
+                        $("#date_fim").val('').attr('placeholder', 'Cliente sem registro').prop("disabled", true);
+                    }
+                })
+                .catch(error => console.log('error', error));
+        }
+
+
+        let getDadosAll = (dados = '') => {
+            if ($('#date_ini').attr('placeholder') == 'Cliente sem registro') {
+                Swal.fire({
+                    title: `Sem dados`,
+                    html: 'No existe dados desta empresa para gerar gráficos',
+                    animation: false,
+                    customClass: 'animated tada',
+                    padding: '2em'
+                })
+
+            } else {
+
+                url = `/relatorios/get_dados_chart/`;
+                const id = document.getElementById('idempresa');
+                let list_cnpj_filial = $('#cnpj_filial').val();
+                const uf = $('#id_uf_cnpj').val();
+                const data_ini = $('#date_ini').val().replaceAll('/', '-');
+                const data_fim = $('#date_fim').val().replaceAll('/', '-');
+
+                if (!id.value) {
+                    Swal.fire({
+                        title: `Selecione um Cliente`,
+                        html: 'É preciso selecionar o cliente',
+                        animation: false,
+                        customClass: 'animated tada',
+                        padding: '2em'
+                    })
+                    return;
+                }
+
+                if (list_cnpj_filial.length > 0) {
+                    list_cnpj_filial = JSON.parse($('#cnpj_filial').val()).map((x) => x.value).join(',');
+                }
+
+                dadosxls = {
+                    'page': 'charts',
+                    'idEmpresa': id.value,
+                    'base': id.value,
+                    'data_ini': data_ini,
+                    'data_fim': data_fim,
+                    'nomeEmpresa': id.options[id.selectedIndex].text,
+                    'cnpjFilial': list_cnpj_filial,
+                    'uf': uf
+                }
+
+                sessionStorage.setItem('data_chart', JSON.stringify(dadosxls));
+
+                var url = $("#Url").attr("data-url");
+                document.location.href = url;
+            }
+        }
+
+
+
+        var cpu_api = new JustGage({
+            id: "cpu_api",
+            value: '',
+            min: 0,
+            max: 100,
+            valueFontColor: '#fff7f7',
+            label: "CPU %"
+        });
+        var ram_api = new JustGage({
+            id: "ram_api",
+            value: '',
+            min: 0,
+            max: 100,
+            valueFontColor: '#fff7f7',
+            label: "RAM %"
+        });
+
+        var cpu_mysql = new JustGage({
+            id: "cpu_mysql",
+            value: '',
+            min: 0,
+            max: 100,
+            valueFontColor: '#fff7f7',
+            label: "CPU %"
+        });
+        var ram_mysql = new JustGage({
+            id: "ram_mysql",
+            value: '',
+            min: 0,
+            max: 100,
+            valueFontColor: '#fff7f7',
+            label: "RAM %"
+        });
+
+        function showApiSTG() {
+            var myHeaders = new Headers();
+            myHeaders.append("Authorization", "Basic Z2xhbmNlczoxMjNtdWRhckBlZQ==");
+
+            var requestOptions = {
+                method: 'GET',
+                headers: myHeaders,
+                redirect: 'follow'
+            };
+
+            fetch("http://3.140.170.151:5000/api/3/cpu", requestOptions)
+                .then(response => response.text())
+                .then(result => {
+                    console.log(result)
+                })
+                .catch(error => console.log('error', error));
+        }
+
+        function mostraDados() {
+            let url = `/tot_empresas`;
+
+            let requestOptions = {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    "X-CSRFToken": csrftoken,
+                    "Authorization": `Bearer ${window.localStorage.getItem('accessToken')}`
+                },
+                body: JSON.stringify({ 'post_data': `${dadosxls}` })
+            };
+
+            function int_to_milhar(n) {
+                return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            }
+
+            fetch(url, requestOptions)
+                .then(response => response.text())
+                .then(result => {
+                    let dados = JSON.parse(JSON.parse(result));
+                    Swal.close();
+
+                    $("#tot_reg").text(int_to_milhar(dados.total));
+                    $("#tot_empresas").text(dados.qtd);
+
+                    dados_x = '';
+
+                    dados['top5_piores'].forEach((rst, index) => {
+                        x = `
+                        <div class="summary-list">
+                            <div class="w-summary-details">
+                                <div class="w-summary-info">
+                                    <h6>${rst[0].toUpperCase()}</h6>
+                                    <p class="summary-count">${rst[2]}</p>
+                                </div>
+                                <div class="w-summary-stats">
+                                    <div class="progress">
+                                        <div class="progress-bar bg-gradient-success" role="progressbar" style="width: ${rst[2]}%" aria-valuenow="${rst[2]}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                        dados_x += x;
+
+                    });
+
+                    $('#summary').html(dados_x);
+
+                    data_top5_melhores = []
+                    labels_top5_melhores = []
+
+                    for (i = 0; i < dados['top5_melhores'].length; i++) {
+                        data_top5_melhores.push(dados['top5_melhores'][i][2]);
+                        labels_top5_melhores.push(dados['top5_melhores'][i][0]);
+                    }
+
+                    var d_1options3 = {
+                        chart: {
+                            id: 'sparkline1',
+                            type: 'bar',
+                            height: 160,
+                            sparkline: {
+                                enabled: true
+                            },
+                        },
+                        title: {
+                            text: "[ Top 5 Mais Registros ]",
+                            align: "center",
+                            floating: true,
+                            style: {
+                                color: "#999",
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                fontFamily: undefined,
+                                color: '#fff'
+                            },
+                        },
+                        stroke: {
+                            curve: 'smooth',
+                            width: 2,
+                        },
+                        series: [{
+                            name: 'Registros',
+                            data: data_top5_melhores
+                        }],
+                        labels: labels_top5_melhores,
+                        dataLabels: {
+                            enabled: true,
+                            style: {
+                                colors: ["#fff"]
+                            },
+                            formatter: function (val, opt) {
+                                function int_to_milhar(n) {
+                                    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                                }
+                                return [opt.w.config.labels[opt.dataPointIndex].substring(0, 8) + '...', int_to_milhar(val)];
+                            },
+                            offsetY: 13,
+                            offsetX: 0,
+                            dropShadow: {
+                                enabled: true
+                            }
+                        },
+
+                        plotOptions: {
+                            bar: {
+                                barHeight: "100%",
+                                distributed: true,
+
+                                dataLabels: {
+                                    position: "bottom"
+                                }
+                            }
+                        },
+                        colors: ['#4361ee', '#546E7A', '#d4526e', '#f48024', '#2b908f'],
+                        tooltip: {
+                            x: {
+                                show: true,
+                            }
+                        },
+                        grid: {
+                            show: false,
+                            xaxis: {
+                                lines: {
+                                    show: false
+                                }
+                            },
+                            padding: {
+                                top: 5,
+                                right: 0,
+                                left: 0
+                            },
+                        },
+
+                    }
+
+                    var d_1C_5 = new ApexCharts(document.querySelector("#hybrid_followers"), d_1options3);
+                    d_1C_5.render()
+
+                })
+                .catch(error => console.log('error', error));
+        }
+
+        mostraDados();
+    </script>
+
+    <style>
+        .tagify {
+            padding: 0px 0.25rem !important;
+            font-size: 10px !important;
+        }
+
+        body.dark .widget-three .widget-content .summary-list:not(:last-child) {
+            margin-bottom: 10px;
+        }
+    </style>
+    {% endblock %}
+
+    {% block urlWebSocket%}
+    + '/api/trigger/ws/'
+    {% endblock%}
+
+    {% block scriptJS%}
+    if(e.data.search("system_status")> 0){
+        const data = JSON.parse(e.data);
+        if(data.system.type == 'sistema'){
+            cpu_api.refresh(parseFloat(data.system.cpu_percent));
+            ram_api.refresh(data.system.memory_usage);
+        $('#free_api').text(`HD FREE: ${data.system.free_hd} GB - ${data.system.total_hd} GB total - ${data.system.disk_usage}% de uso`);
+        $('#timerSistema').text(`${data.system.current_time}`);
+    }
+
+    if(e.data.search("mysql_status")> 0){
+        const data = JSON.parse(e.data);
+        if(data.mysql.type == 'mysql'){
+            cpu_mysql.refresh(parseFloat(data.mysql.cpu_percent));
+            ram_mysql.refresh(data.mysql.memory_usage);
+            $('#free_mysql').text(`HD FREE: ${data.mysql.free_hd} GB - ${data.mysql.total_hd} GB total - ${data.mysql.disk_usage}% de uso`);
+            $('#timerMysql').text(`${data.mysql.current_time}`);
+        }
+    }
+    }else if(e.data.search("exit")){
+        console.log('disconect');
+        /* notificationSocket.close();*/
+    }
+    {% endblock%}

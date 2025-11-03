@@ -1,0 +1,22 @@
+services:
+  mysql57:
+    image: mysql:5.7
+    container_name: stg_mysql57
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: stg_contracts
+      MYSQL_USER: stg
+      MYSQL_PASSWORD: stgpass
+    command: [
+      "--character-set-server=latin1",
+      "--collation-server=latin1_swedish_ci",
+      "--skip-character-set-client-handshake"
+    ]
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+      - mysql57_data:/var/lib/mysql
+volumes:
+  mysql57_data:

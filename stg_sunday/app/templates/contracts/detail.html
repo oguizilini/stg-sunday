@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<body class="layout-boxed">
+{% endblock %}
+
+{% block container %}
+<div class="layout-top-spacing">
+    <div class="page-title d-flex justify-content-between align-items-center">
+        <div>
+            <h2>Contrato #{{ contract_id }}</h2>
+            <p class="text-muted">Resumo, fases, documentos e tarefas relacionadas.</p>
+        </div>
+        <a href="{{ url_for('contracts_index') }}" class="btn btn-outline-secondary">Voltar</a>
+    </div>
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="widget-content widget-content-area mb-4">
+                <h5 class="mb-3">Detalhes do contrato</h5>
+                <p class="text-muted">Painel com informações gerais será inserido aqui.</p>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="widget-content widget-content-area mb-4">
+                <h5 class="mb-3">Progresso</h5>
+                <p class="text-muted">Gráficos de andamento, automações disparadas e dados de SLA.</p>
+            </div>
+        </div>
+    </div>
+    <div class="alert alert-info" role="alert">
+        Fichas com fases, tarefas e documentos serão carregadas via API e componentes JS.
+    </div>
+</div>
+{% endblock %}

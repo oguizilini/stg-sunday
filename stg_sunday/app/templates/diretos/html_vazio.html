@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/noUiSlider/nouislider.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/accordions.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/accordions.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/dt-global_style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_custom.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/table/datatable/custom_dt_miscellaneous.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/table/datatable/custom_dt_miscellaneous.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/scrollspyNav.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/flatpickr/custom-flatpickr.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/sweetalerts2/custom-sweetalert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/vanillaSelectBox/custom-vanillaSelectBox.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/tagify/tagify.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/tagify/custom-tagify.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/tagify/custom-tagify.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/light/notification/snackbar/custom-snackbar.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/plugins/css/dark/notification/snackbar/custom-snackbar.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/elements/alert.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/elements/alert.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/light/components/modal.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/assets/css/dark/components/modal.css') }}">
+
+{% endblock %}
+
+{% block body %}
+    <body class="alt-menu layout-boxed">
+{% endblock%}
+
+{% block container %}
+
+    <div class="layout-top-spacing">
+        <div class="row layout-spacing">
+            <div class="col-xl-12 col-lg-12 col-sm-12  layout-spacing">
+                <div class="widget-content widget-content-area br-6">
+                    <div class="row">
+                        <div class="col-12">
+                            <h4>Página Vazia</h4>
+                            <p>Esta é uma página vazia para testes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Seus scripts JavaScript aqui -->
+<script>
+    // Código JavaScript específico desta página
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Página HTML Vazia carregada com sucesso!');
+    });
+</script>
+{% endblock %}
+
+{% block import_js %}
+<style>
+li.disabled {
+    background-color: #1b4e9d00;
+}
+</style>
+
+<script>
+
+
+</script>
+<script src="{{ url_for('static', path='src/plugins/src/global/vendors.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/flatpickr.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/flatpickr/pt.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/sweetalerts2/sweetalerts2.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/input-mask/jquery.inputmask.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/datatables.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/table/datatable/button-ext/dataTables.buttons.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/tagify/tagify.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/vanillaSelectBox/vanillaSelectBox.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/bundle/bs5-toast.js') }}"></script>
+<script src="{{ url_for('static', path='src/plugins/src/socket.io/socket.io.js') }}"></script>
+
+
+<style>
+li.disabled {
+    background-color: #1b4e9d00;
+}
+
+/* fonte https://bs5-toast.vercel.app/ */
+
+body.dark .toast-header .btn-close {
+    box-sizing: content-box;
+    width: 1em;
+    height: 1em;
+    padding: 0.25em 0.25em;
+    color: #000;
+    background-color: #ffffff;
+    border: 0;
+    border-radius: 0.25rem;
+    opacity: .5;
+}
+
+body.dark .toast-body {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    color: #6c757d;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    border-top-left-radius: calc(0.25rem - 1px);
+    border-top-right-radius: calc(0.25rem - 1px);
+}
+body.dark .toast-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    color: #6c757d !important;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    border-top-left-radius: calc(0.25rem - 1px);
+    border-top-right-radius: calc(0.25rem - 1px);
+}
+.toast {
+    width: 350px;
+    max-width: 100%;
+    font-size: .875rem;
+    pointer-events: auto;
+    background-color: rgba(255,255,255,.85);
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.1);
+    box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 15%);
+    border-radius: 0.25rem;
+}
+</style>
+{% endblock %}
+{% block urlWebSocket%}
++ '/api/trigger/ws/'
+{% endblock%}

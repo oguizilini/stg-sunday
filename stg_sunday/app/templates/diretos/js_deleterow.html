@@ -1,0 +1,43 @@
+function deleteRow(data, row) {
+		const dadosxls = document.getElementById('dadosxls').innerText;
+		const data_table = document.getElementById('tablehist'); // Mantendo o data_table
+
+		Swal.fire({
+			title: 'Você tem Certeza?',
+			text: "Isso não poderá ser revertido!",
+			showCancelButton: true,
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			confirmButtonText: 'Sim, apagar isso!',
+			cancelButtonText: 'Cancelar'
+		}).then((result) => {
+			if (result.value) {
+				const dadosxls_ = {
+					'page': `${thisPage}`,
+					'data': `${data}`,
+					'row': `${row}`,
+					'userId': `11`
+				};
+
+				fetch(`/del_table`, {
+					method: 'DELETE',
+					headers: {
+						'Authorization': `Bearer ${window.localStorage.getItem('accessToken')}`,
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({"post_data": dadosxls_})
+				})
+				.then(response => response.json())
+				.then(result => {
+					if (result.erro) {
+						Swal.fire('Erro!', result.data, 'warning');
+					} else {
+						Swal.fire('Apagado!', result.data, 'success').then(() => {
+							document.querySelector('.btn.btn-secondary.toggle-vis.mb-1').click();
+						});
+					}
+				})
+				.catch(error => console.log('error', error));
+			}
+		});
+	}

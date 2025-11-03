@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no">
+    <title> Sterling Corp Analytics Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='src/assets/img/favicon.ico') }}"/>
+    <link href="{{ url_for('static', path='layouts/vertical-dark-menu/css/light/loader.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static', path='layouts/vertical-dark-menu/css/dark/loader.css') }}" rel="stylesheet" type="text/css" />
+    <script src="{{ url_for('static', path='layouts/vertical-dark-menu/loader.js') }}"></script>
+
+    <!-- BEGIN GLOBAL MANDATORY STYLES -->
+    <link href="https://fonts.googleapis.com/css?family=Nunito:400,600,700" rel="stylesheet">
+    <link href="{{ url_for('static', path='src/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static', path='layouts/vertical-dark-menu/css/light/plugins.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static', path='layouts/vertical-dark-menu/css/dark/plugins.css') }}" rel="stylesheet" type="text/css" />
+    <!-- END GLOBAL MANDATORY STYLES -->
+
+    <!-- BEGIN PAGE LEVEL PLUGINS/CUSTOM STYLES -->
+    {% block import_css %}
+
+    {% endblock %}
+
+    <style>
+        /* Estilos da barra de rolagem */
+        html ::-webkit-scrollbar {
+            width: 17px;
+        }
+
+        html ::-webkit-scrollbar-track {
+            background: #0e1726;
+        }
+
+        html ::-webkit-scrollbar-thumb {
+            background-color: #1b2e4b;
+            border-radius: 5px;
+        }
+
+        /* Estilos dos botões de rolagem */
+        .html-scrollbar-button {
+            width: 17px;
+            background-color: #1b2e4b;
+            border-radius: 5px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .html-scrollbar-button:hover {
+            opacity: 1;
+        }
+
+        body.dark .sidebar-wrapper {
+            width: 282px;
+        }
+
+        body.dark #content {
+            margin-left: 282px;
+        }
+
+        body .sidebar-wrapper {
+            width: 282px;
+        }
+
+        body #content {
+            margin-left: 282px;
+        }
+        .menu-list {
+        display: none;
+        position: absolute;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        background-color: #1b2e4b;
+        color: #ffffff;
+        }
+        .menu-list::-webkit-scrollbar-track {
+            background: #1b2e4b;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 15px;
+        }
+
+        .menu-list::-webkit-scrollbar-thumb {
+            background-color: #0e1726;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 15px;
+        }
+
+        li {
+            list-style-type: none;
+        }
+
+        .highlighted {
+            background-color: #007bff; /* Cor de fundo do item destacado ou sob o mouse */
+            cursor: pointer;
+            transition: all 300ms ease-in-out;
+            font-weight: bold;
+            color: white;
+        }
+
+        .menu-list li a:hover{
+            color: #E0E6ED;
+        }
+
+        /* Estilos para o botão do Sterling AI */
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px #4361ee, 0 0 10px #4361ee; }
+            50% { box-shadow: 0 0 5px #4361ee, 0 0 10px #4361ee; }
+            100% { box-shadow: 0 0 5px #4361ee, 0 0 10px #4361ee; }
+        }
+
+        @keyframes sparkle {
+            0% { opacity: 0.7; transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px #fff); }
+            50% { opacity: 1; transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff) drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)); }
+            100% { opacity: 0.7; transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px #fff); }
+        }
+
+        /* Corrigindo o seletor para aplicar apenas ao ícone do botão Assistente STG */
+        .navbar-item .nav-item a.btn-primary .star-icon {
+            animation: sparkle 3s ease-in-out infinite;
+        }
+
+        .navbar-item .nav-item a.btn-primary .star-icon g {
+            transform-origin: center;
+        }
+
+        /* Efeito de brilho que passa da esquerda para a direita */
+        @keyframes sweep-shine {
+            0% {
+                transform: translateX(-100%) skewX(-30deg);
+                opacity: 0;
+            }
+            25% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.2;
+            }
+            100% {
+                transform: translateX(200%) skewX(-30deg);
+                opacity: 0;
+            }
+        }
+
+        .glow-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg,
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.8) 50%,
+                rgba(255,255,255,0) 100%);
+            opacity: 0.7;
+            transform: skewX(-30deg);
+            animation: sweep-shine 4s ease-in-out infinite;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .navbar-item .nav-item a.btn-primary {
+            animation: pulse-glow 2s infinite;
+            position: relative;
+            background: linear-gradient(135deg, #4361ee, #3a56e4, #304ad8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .navbar-item .nav-item a.btn-primary:hover {
+            transform: translateY(0px);
+            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.5);
+        }
+
+        /* Adaptação para o tema escuro */
+        body.dark .navbar-item .nav-item a.btn-primary {
+            background: linear-gradient(135deg, #4361ee, #3a56e4, #304ad8);
+        }
+
+        .star-icon {
+            filter: brightness(0) invert(1); /* Converte para branco */
+            vertical-align: middle;
+            margin-right: 8px;
+            width: 24px;
+            height: 24px;
+            animation: none !important;
+        }
+    </style>
+
+    <!-- END PAGE LEVEL PLUGINS/CUSTOM STYLES -->
+
+    {% block header %}
+    {% endblock %}
+
+
+</head>
+{% block body %}
+<body class="layout-boxed">
+{% endblock%}
+
+    <!-- BEGIN LOADER -->
+    <div id="load_screen"> <div class="loader"> <div class="loader-content">
+        <div class="spinner-grow align-self-center"></div>
+    </div></div></div>
+    <!--  END LOADER -->
+
+    <!--  BEGIN NAVBAR  -->
+    <div class="header-container container-xxl" style="padding: 5px 20px 4px 16px;">
+        <header class="header navbar navbar-expand-sm expand-header">
+
+            <ul class="navbar-item theme-brand flex-row  text-center">
+                <li class="nav-item theme-text">
+                    <a href="{{ url_for('index') }}" class="nav-link"> STG Analytics<sup><span style="font-size: 0.7em;">4.0</span></sup>
+</sup> </a>
+                </li>
+            </ul>
+
+            <div class="search-animated toggle-search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <form class="form-inline search-full form-inline search" role="search">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" autocomplete="off" class="form-control search-form-control  ml-lg-auto" placeholder="Pesquisar...">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x search-close"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </div>
+                    <ul id="menuList" class="menu-list" style="margin-top: 1.5px;">
+                        {% include 'home/menu_diretos.html' %}
+                    </ul>
+                </form>
+                <span class="badge badge-secondary">/</span>
+            </div>
+
+            <ul class="navbar-item flex-row ms-lg-auto ms-0 action-area">
+                <li class="nav-item theme-toggle-item">
+                    <a href="javascript:void(0);" class="nav-link theme-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon dark-mode"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sun light-mode"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    </a>
+                </li>
+
+                <li class="nav-item dropdown notification-dropdown">
+                    <a href="javascript:void(0);" class="nav-link dropdown-toggle" id="notificationDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bell"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="badge badge-success"></span>
+                    </a>
+
+                    <div class="dropdown-menu position-absolute" aria-labelledby="notificationDropdown">
+                        <div class="notification-scroll">
+                            <div class="drodpown-title notification mt-2">
+                                <h6 class="d-flex justify-content-between"><span class="align-self-center">Notificações</span></h6>
+                            </div>
+                        </div>
+                    </div>
+
+                </li>
+
+                <li class="nav-item dropdown user-profile-dropdown  order-lg-0 order-1">
+                    <a href="javascript:void(0);" class="nav-link dropdown-toggle user" id="userProfileDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+
+                        <div class="avatar-container">
+                            <div class="avatar avatar-sm avatar-indicators avatar-online">
+                                <img alt="avatar" src="{{ url_for('static', path='/src/assets/img/profile-30.png') }}" class="rounded-circle">
+                            </div>
+                        </div>
+                    </a>
+
+                    <div class="dropdown-menu position-absolute" aria-labelledby="userProfileDropdown">
+                        <div class="user-profile-section">
+                            <div class="media mx-auto">
+                                <div class="emoji me-2">
+                                    &#x1F44B;
+                                </div>
+                                <div class="media-body">
+                                    <h5>gguilhem</h5>
+                                    <p>gguilhem</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dropdown-item">
+                            <a href="user-profile.html">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-user"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> <span>Profile</span>
+                            </a>
+                        </div>
+                        <div class="dropdown-item">
+                            <a href="">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span>Log Out</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </li>
+            </ul>
+        </header>
+    </div>
+    <!--  END NAVBAR  -->
+
+    <!--  BEGIN MAIN CONTAINER  -->
+    <div class="main-container" id="container">
+
+        <div class="overlay"></div>
+        <div class="search-overlay"></div>
+
+        <!--  BEGIN SIDEBAR  -->
+        <div class="sidebar-wrapper sidebar-theme">
+
+            {% include 'home/menu.html' %}
+
+        </div>
+        <!--  END SIDEBAR  -->
+
+        <!--  BEGIN CONTENT AREA  -->
+        <div id="content" class="main-content">
+            <div class="layout-px-spacing">
+
+                <div class="middle-content container-xxl p-0">
+
+                    <!--  BEGIN BREADCRUMBS  -->
+                    <div class="secondary-nav">
+                        <div class="breadcrumbs-container" data-page-heading="Analytics">
+                            <header class="header navbar navbar-expand-sm">
+                                <a href="javascript:void(0);" class="btn-toggle sidebarCollapse" data-placement="bottom">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                                </a>
+                                <div class="d-flex breadcrumb-content">
+                                    <div class="page-header">
+
+                                        <div class="page-title">
+                                        </div>
+
+                                        <nav class="breadcrumb-style-one" aria-label="breadcrumb">
+                                            <ol class="breadcrumb">
+                                                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
+                                                <li class="breadcrumb-item active" aria-current="page">{{ page }}</li>
+                                            </ol>
+                                        </nav>
+
+                                    </div>
+                                </div>
+                                <ul class="navbar-nav flex-row ms-auto breadcrumb-action-dropdown">
+                                    <li class="nav-item more-dropdown">
+                                        <div class="dropdown  custom-dropdown-icon">
+                                            <a class="dropdown-toggle btn" href="#" role="button" id="customDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <span>Settings</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down custom-dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                            </a>
+
+                                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="customDropdown">
+
+                                                <a class="dropdown-item" data-value="Settings" data-icon="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;feather feather-settings&quot;><circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot;></circle><path d=&quot;M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z&quot;></path></svg>" href="javascript:void(0);">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> Settings
+                                                </a>
+
+                                                <a class="dropdown-item" data-value="Mail" data-icon="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;feather feather-mail&quot;><path d=&quot;M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z&quot;></path><polyline points=&quot;22,6 12,13 2,6&quot;></polyline></svg>" href="javascript:void(0);">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-mail"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Mail
+                                                </a>
+
+                                                <a class="dropdown-item" data-value="Print" data-icon="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;feather feather-printer&quot;><polyline points=&quot;6 9 6 2 18 2 18 9&quot;></polyline><path d=&quot;M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2&quot;></path><rect x=&quot;6&quot; y=&quot;14&quot; width=&quot;12&quot; height=&quot;8&quot;></rect></svg>" href="javascript:void(0);">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-printer"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Print
+                                                </a>
+
+                                                <a class="dropdown-item" data-value="Download" data-icon="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;feather feather-download&quot;><path d=&quot;M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4&quot;></path><polyline points=&quot;7 10 12 15 17 10&quot;></polyline><line x=&quot;12&quot; y1=&quot;15&quot; x2=&quot;12&quot; y2=&quot;3&quot;></line></svg>" href="javascript:void(0);">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Download
+                                                </a>
+
+                                                <a class="dropdown-item" data-value="Share" data-icon="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;feather feather-share-2&quot;><circle cx=&quot;18&quot; cy=&quot;5&quot; r=&quot;3&quot;></circle><circle cx=&quot;6&quot; cy=&quot;12&quot; r=&quot;3&quot;></circle><circle cx=&quot;18&quot; cy=&quot;19&quot; r=&quot;3&quot;></circle><line x1=&quot;8.59&quot; y1=&quot;13.51&quot; x2=&quot;15.42&quot; y2=&quot;17.49&quot;></line><line x1=&quot;15.41&quot; y1=&quot;6.51&quot; x2=&quot;8.59&quot; y2=&quot;10.49&quot;></line></svg>" href="javascript:void(0);">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-share-2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Share
+                                                </a>
+
+                                            </div>
+
+                                        </div>
+                                    </li>
+                                </ul>
+                            </header>
+                        </div>
+                    </div>
+                    <!--  END BREADCRUMBS  -->
+
+                    {% block container %}
+
+                    {% endblock%}
+
+                </div>
+
+            </div>
+           <!--  BEGIN FOOTER  -->
+            <div class="footer-wrapper">
+                <div class="footer-section f-section-1">
+                    <p class="">Copyright © <span class="dynamic-year"><span id="year"></span></span> <a target="_blank" href="https://stganalytics.com.br/">STG</a>, All rights reserved.</p>
+                </div>
+                <div class="footer-section f-section-2">
+                    <p class="">Coded for T.I </p>
+                </div>
+            </div>
+            <!--  END FOOTER  -->
+        </div>
+        <!--  END CONTENT AREA  -->
+
+    </div>
+    <!-- END MAIN CONTAINER -->
+
+    <!-- BEGIN GLOBAL MANDATORY SCRIPTS -->
+    <script src="{{ url_for('static', path='src/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/waves/waves.min.js') }}"></script>
+    <script src="{{ url_for('static', path='layouts/vertical-dark-menu/app.js') }}"></script>
+    <script src="{{ url_for('static', path='src/plugins/src/notification/snackbar/snackbar.min.js') }}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let seen = new Set();
+            document.querySelectorAll("#menuList li").forEach(li => {
+                let text = li.textContent.trim();
+                if (seen.has(text)) {
+                    li.remove(); // Remove duplicado
+                } else {
+                    seen.add(text); // Adiciona ao conjunto
+                }
+            });
+        });
+
+        document.getElementById("year").innerHTML = new Date().getFullYear();
+
+        const ul = document.getElementById('menuList'); // Selecionar os itens da lista
+        const items = ul.getElementsByTagName('li'); // Converter os itens em uma matriz
+        const itemsArray = Array.from(items); // Ordenar a matriz em ordem alfabética
+
+        itemsArray.sort((a, b) => {
+            const textA = a.textContent.trim().toLowerCase();
+            const textB = b.textContent.trim().toLowerCase();
+            return textA.localeCompare(textB);
+        });
+
+        // Limpar a lista
+        while (ul.firstChild) {
+            ul.removeChild(ul.firstChild);
+        }
+
+        // Adicionar os itens ordenados de volta à lista
+        itemsArray.forEach(item => {
+            ul.appendChild(item);
+        });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            let selectedIndex = -1;
+            const class_searchInput = $(".search-form-control");
+            const class_menuList = $(".menu-list");
+            const searchInput = $("#searchInput");
+            const menuList = $("#menuList");
+            const menuItems = menuList.find("li");
+
+            $(document).on("mousedown", function(e) {
+                if (!class_searchInput.is(e.target) && !class_menuList.is(e.target) && class_menuList.has(e.target).length === 0) {
+                    class_menuList.hide();
+                }
+            });
+
+            class_searchInput.on("mousedown focus", function() {
+                class_menuList.show();
+            });
+
+            searchInput.on("input", function() {
+                const query = normalizeText($(this).val().toLowerCase());
+                menuItems.each(function() {
+                    const itemText = normalizeText($(this).text().toLowerCase());
+                    $(this).toggle(itemText.includes(query));
+                });
+                selectedIndex = -1;
+                highlightItem(0);
+            });
+
+            menuItems.click(function(e) {
+                const link = $(this).find("a");
+                if (link.length) {
+                    e.preventDefault();
+                    window.location.href = link.attr("href");
+                }
+            });
+
+            menuItems.on({
+                mouseover: function() {
+                    highlightItem(getVisibleItems().index($(this)));
+                    $(this).addClass("highlighted");
+                },
+                mouseout: function() {
+                    $(this).removeClass("highlighted");
+                }
+            });
+
+            searchInput.on("keydown", function(event) {
+                let visibleItems = getVisibleItems();
+                let maxIndex = visibleItems.length - 1;
+
+                if (event.keyCode === 40) {
+                    event.preventDefault();
+                    selectedIndex = (selectedIndex < maxIndex) ? selectedIndex + 1 : 0;
+                    highlightItem(selectedIndex);
+                } else if (event.keyCode === 38) {
+                    event.preventDefault();
+                    selectedIndex = (selectedIndex > 0) ? selectedIndex - 1 : maxIndex;
+                    highlightItem(selectedIndex);
+                } else if (event.keyCode === 13 && selectedIndex > -1) {
+                    event.preventDefault();
+                    visibleItems.eq(selectedIndex).find("a")[0].click();
+                }
+            });
+
+            function getVisibleItems() {
+                return menuItems.filter(":visible");
+            }
+
+            function highlightItem(index) {
+                menuItems.removeClass("highlighted");
+                let visibleItems = getVisibleItems();
+                if (index >= 0 && index < visibleItems.length) {
+                    let selectedItem = visibleItems.eq(index).addClass("highlighted");
+                    selectedIndex = index;
+                    scrollIntoViewIfNeeded(selectedItem[0]);
+                }
+            }
+
+            function scrollIntoViewIfNeeded(element) {
+                let rect = element.getBoundingClientRect();
+                if (rect.bottom > 340) {
+                    element.scrollIntoView(false);
+                } else if (rect.top < 52) {
+                    element.scrollIntoView();
+                }
+            }
+            function normalizeText(text) {
+                return text.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+            }
+        });
+
+        function connect() {
+            Snackbar.show({text: `Atualizando Status do Sistema` ,  pos: 'top-center', duration: 2000});
+            const loc = window.location;
+            const wsStart = loc.protocol === 'https:' ? 'wss://' : 'ws://';
+            const local = loc.host; // hostname:port atual
+            const client_id = '11';
+
+            var notificationSocket = new WebSocket(
+                wsStart
+                + local
+                {% block urlWebSocket%}
+                {% endblock%}
+                + client_id
+            );
+
+            notificationSocket.onopen = function(e) {
+                console.log("[open] Connection WebSocket established");
+            };
+
+
+            notificationSocket.onmessage = function(e) {
+                {% block scriptJS%}
+                {% endblock%}
+            }
+
+            notificationSocket.onclose = function(e) {
+                console.log('servidor Websocket fechado');
+
+                console.log('Socket está fechado. Fará tentativa reconexão em 5 seg.', e.reason);
+                setTimeout(function() {
+                    connect();
+                }, 5000);
+            };
+          }
+
+        connect();
+    </script>
+    <!-- END GLOBAL MANDATORY SCRIPTS -->
+
+    <!-- BEGIN PAGE LEVEL PLUGINS/CUSTOM SCRIPTS -->
+    {% block import_js %}
+
+    {% endblock %}
+
+    {% block tablelist %}
+    {% endblock%}
+    <!-- BEGIN PAGE LEVEL PLUGINS/CUSTOM SCRIPTS -->
+
+</body>
+</html>
