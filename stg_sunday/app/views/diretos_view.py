@@ -20,6 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter()
+ui_router = APIRouter()
+
+
+@ui_router.get('/diretos/stg-sunday', response_class=Response, name='stg_sunday')
+async def stg_sunday(request: Request):
+    """Página principal da plataforma STG Sunday."""
+
+    context = {
+        "request": request,
+        "page": "STG Sunday",
+    }
+    return templates.TemplateResponse('diretos/stg_sunday.html', context=context)
 
 
 @router.get('/relatorios_diretos_fontes_pagadoras', name='fontes_pagadoras')

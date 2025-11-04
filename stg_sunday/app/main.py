@@ -8,13 +8,14 @@ from pathlib import Path
 import os
 
 # Importando as rotas
-from views import diretos_view
+from views.diretos_view import router as diretos_router, ui_router as diretos_ui_router
 from views.home_view import router as home_router
 from views.contracts_view import router as contracts_router
 from views.phases_view import router as phases_router
 from views.tasks_view import router as tasks_router
 from views.documents_view import router as documents_router
 from views.automations_view import router as automations_router
+from views.sunday_board_view import router as sunday_router
 
 # Configuração do CORS
 cors_middleware = Middleware(
@@ -60,7 +61,9 @@ app.include_router(phases_router)
 app.include_router(tasks_router)
 app.include_router(documents_router)
 app.include_router(automations_router)
-app.include_router(diretos_view.router, prefix="/api")  # Adicionando prefixo /api para rotas da API
+app.include_router(diretos_ui_router)
+app.include_router(diretos_router, prefix="/api")  # Rotas de API legado
+app.include_router(sunday_router, prefix="/api")
 
 # Configurando arquivos estáticos
 app.mount('/static', StaticFiles(directory='static'), name='static')

@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block import_css %}
+    {{ super() }}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='src/apps/stg_sunday.css') }}">
+{% endblock %}
+
+{% block body %}
+    <body class="alt-menu layout-boxed stg-sunday-page dark">
+{% endblock %}
+
+{% block container %}
+    <div class="stg-sunday-wrapper" data-endpoint-boards="{{ url_for('sunday_boards_list') }}">
+        <div class="sunday-layout">
+            <aside class="sunday-board-sidebar" data-board-sidebar>
+                <button class="sunday-board-sidebar__toggle" data-action="toggle-sidebar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <div class="sunday-board-sidebar__header">
+                    <h2>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Quadros
+                    </h2>
+                    <button class="sunday-btn sunday-btn-secondary" data-action="create-board">+ Novo quadro</button>
+                </div>
+                <ul class="sunday-board-sidebar__list" data-board-sidebar-list>
+                    <li class="sidebar-empty">Nenhum quadro criado.</li>
+                </ul>
+            </aside>
+
+            <div class="sunday-main">
+                <section class="sunday-topbar-card">
+                    <div class="sunday-topbar-card__left">
+                        <figure class="sunday-logo">
+                            <img src="{{ url_for('static', path='src/assets/img/645f63f0-24cf-4ac2-9c03-bf530e588234.png') }}" alt="STG Sunday">
+                        </figure>
+                <div class="sunday-topbar-card__title">
+                    <h1 data-board-title>STG Sunday</h1>
+                    <p data-board-subtitle>Selecione um quadro ou crie um novo para começar.</p>
+                </div>
+            </div>
+            <div class="sunday-topbar-card__actions">
+                <button class="sunday-btn sunday-btn-secondary" data-action="create-group">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Nova tabela
+                </button>
+                <button class="sunday-btn sunday-btn-ghost" data-action="manage-groups">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M12 4h9"></path><path d="M5 9h14"></path><path d="M5 15h14"></path></svg>
+                    Gerenciar tabelas
+                </button>
+                <button class="sunday-btn sunday-btn-ghost" data-action="board-menu">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                </button>
+            </div>
+        </section>
+
+                <section class="sunday-toolbar">
+                    <div class="sunday-toolbar__filters">
+                        <div class="sunday-input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" placeholder="Pesquisar itens, clientes ou contratos" data-input-search>
+                        </div>
+                        <button class="sunday-chip" data-action="filter">Filtros</button>
+                        <button class="sunday-chip" data-action="group">Agrupar</button>
+                        <button class="sunday-chip" data-action="sort">Ordenar</button>
+                        <button class="sunday-chip" data-action="people">Responsáveis</button>
+                    </div>
+                    <div class="sunday-toolbar__summary" data-toolbar-summary>
+                        <span class="summary-pill" data-summary-groups>0 tabelas</span>
+                        <span class="summary-pill" data-summary-items>0 itens</span>
+                    </div>
+                </section>
+
+                <section class="sunday-board-list" data-board-list>
+                    <div class="sunday-board-empty">
+                        <p>Crie sua primeira tabela para começar a planejar a semana.</p>
+                        <button class="sunday-btn sunday-btn-primary" data-action="create-group">Adicionar tabela</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <div class="sunday-modal-overlay" data-modal-overlay hidden></div>
+
+        <div class="sunday-modal" id="modal-create-board" hidden>
+            <div class="sunday-modal__header">
+                <h3>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Novo quadro
+                </h3>
+                <button type="button" class="sunday-modal__close" data-modal-close>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <form data-form-create-board>
+                <div class="sunday-modal__body">
+                    <label class="sunday-field">
+                        <span>Nome do quadro</span>
+                        <input name="name" type="text" placeholder="Ex.: Planejamento Fiscal" required maxlength="191">
+                    </label>
+                    <label class="sunday-field">
+                        <span>Descrição</span>
+                        <textarea name="description" rows="3" placeholder="Adicione uma breve descrição"></textarea>
+                    </label>
+                    <label class="sunday-field">
+                        <span>Responsáveis</span>
+                        <input type="text" name="owners" value="gguilhem" disabled>
+                    </label>
+                </div>
+                <div class="sunday-modal__footer">
+                    <button type="button" class="sunday-btn sunday-btn-ghost" data-modal-close>Cancelar</button>
+                    <button type="submit" class="sunday-btn sunday-btn-primary">Criar quadro</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="sunday-modal" id="modal-create-group" hidden>
+            <div class="sunday-modal__header">
+                <h3>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><polyline points="3 12 5 12 21 12"></polyline><polyline points="3 18 5 18 21 18"></polyline></svg>
+                    Nova tabela
+                </h3>
+                <button type="button" class="sunday-modal__close" data-modal-close>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <form data-form-create-group>
+                <div class="sunday-modal__body">
+                    <label class="sunday-field">
+                        <span>Nome da tabela</span>
+                        <input name="name" type="text" placeholder="Ex.: Em aprovação" required maxlength="191">
+                    </label>
+                </div>
+                <div class="sunday-modal__footer">
+                    <button type="button" class="sunday-btn sunday-btn-ghost" data-modal-close>Cancelar</button>
+                    <button type="submit" class="sunday-btn sunday-btn-primary">Criar tabela</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block import_js %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='src/apps/stg_sunday.js') }}" defer></script>
+{% endblock %}

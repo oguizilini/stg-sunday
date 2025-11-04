@@ -112,3 +112,88 @@ CREATE TABLE IF NOT EXISTS automations (
   KEY idx_automations_trigger (trigger_event),
   CONSTRAINT fk_automations_created_by FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+-- ---------------------------------------------------------------------------
+-- Quadro Kanban / STG Sunday
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS board (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(191) NOT NULL,
+  description TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE TABLE IF NOT EXISTS board_group (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  board_id INT UNSIGNED NOT NULL,
+  name VARCHAR(191) NOT NULL,
+  color_hex VARCHAR(12) NOT NULL DEFAULT '#4361EE',
+  position INT UNSIGNED NOT NULL DEFAULT 0,
+  is_collapsed TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_board_group_board (board_id),
+  KEY idx_board_group_position (position),
+  CONSTRAINT fk_board_group_board FOREIGN KEY (board_id) REFERENCES board(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE TABLE IF NOT EXISTS board_column (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  board_id INT UNSIGNED NOT NULL,
+  name VARCHAR(191) NOT NULL,
+  column_type ENUM('text','status','date','people','number','label','client','observation') NOT NULL DEFAULT 'text',
+  position INT UNSIGNED NOT NULL DEFAULT 0,
+  config_json TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_board_column_board (board_id),
+  KEY idx_board_column_position (position),
+  CONSTRAINT fk_board_column_board FOREIGN KEY (board_id) REFERENCES board(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE TABLE IF NOT EXISTS board_item (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  board_id INT UNSIGNED NOT NULL,
+  group_id INT UNSIGNED NOT NULL,
+  title VARCHAR(191) NOT NULL,
+  position INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_board_item_board (board_id),
+  KEY idx_board_item_group (group_id),
+  KEY idx_board_item_position (position),
+  CONSTRAINT fk_board_item_board FOREIGN KEY (board_id) REFERENCES board(id) ON DELETE CASCADE,
+  CONSTRAINT fk_board_item_group FOREIGN KEY (group_id) REFERENCES board_group(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE TABLE IF NOT EXISTS board_cell (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  item_id INT UNSIGNED NOT NULL,
+  column_id INT UNSIGNED NOT NULL,
+  raw_value TEXT NULL,
+  color_hex VARCHAR(12) NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_board_cell (item_id, column_id),
+  CONSTRAINT fk_board_cell_item FOREIGN KEY (item_id) REFERENCES board_item(id) ON DELETE CASCADE,
+  CONSTRAINT fk_board_cell_column FOREIGN KEY (column_id) REFERENCES board_column(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+CREATE TABLE IF NOT EXISTS board_cell_comment (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  cell_id INT UNSIGNED NOT NULL,
+  author_id INT UNSIGNED NULL,
+  content TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_board_cell_comment_cell (cell_id),
+  KEY idx_board_cell_comment_author (author_id),
+  CONSTRAINT fk_board_cell_comment_cell FOREIGN KEY (cell_id) REFERENCES board_cell(id) ON DELETE CASCADE,
+  CONSTRAINT fk_board_cell_comment_author FOREIGN KEY (author_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
