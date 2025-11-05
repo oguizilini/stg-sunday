@@ -272,8 +272,8 @@
                                     &#x1F44B;
                                 </div>
                                 <div class="media-body">
-                                    <h5>gguilhem</h5>
-                                    <p>gguilhem</p>
+                                    <h5>oguizilini</h5>
+                                    <p>oguizilini</p>
                                 </div>
                             </div>
                         </div>
@@ -401,6 +401,7 @@
     <!-- END MAIN CONTAINER -->
 
     <!-- BEGIN GLOBAL MANDATORY SCRIPTS -->
+    <script src="{{ url_for('static', path='src/plugins/src/global/vendors.min.js') }}"></script>
     <script src="{{ url_for('static', path='src/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', path='src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
     <script src="{{ url_for('static', path='src/plugins/src/mousetrap/mousetrap.min.js') }}"></script>
@@ -568,7 +569,9 @@
             };
           }
 
-        connect();
+        if (!document.body.classList.contains('no-global-ws')) {
+            connect();
+        }
     </script>
     <!-- END GLOBAL MANDATORY SCRIPTS -->
 

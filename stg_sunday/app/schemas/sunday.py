@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from models.entities import BoardColumnType
 
@@ -53,6 +54,29 @@ class BoardColumnOut(BaseModel):
     column_type: BoardColumnType
     position: int
     config_json: Optional[str]
+    config: Optional[dict] = None
+
+    @model_validator(mode="before")
+    def _parse_config(cls, values):
+        if not isinstance(values, dict):
+            obj = values
+            values = {
+                "id": getattr(obj, "id", None),
+                "board_id": getattr(obj, "board_id", None),
+                "name": getattr(obj, "name", None),
+                "column_type": getattr(obj, "column_type", None),
+                "position": getattr(obj, "position", None),
+                "config_json": getattr(obj, "config_json", None),
+                "config": getattr(obj, "config", None),
+            }
+
+        config_json = values.get("config_json")
+        if config_json and not values.get("config"):
+            try:
+                values["config"] = json.loads(config_json)
+            except json.JSONDecodeError:
+                values["config"] = None
+        return values
 
     class Config:
         from_attributes = True
@@ -77,6 +101,7 @@ class BoardOut(BaseModel):
     id: int
     name: str
     description: Optional[str]
+    is_archived: bool
     created_at: datetime
     updated_at: datetime
     groups: List[BoardGroupOut] = Field(default_factory=list)
@@ -101,6 +126,10 @@ class BoardUpdate(BaseModel):
     description: Optional[str] = None
 
 
+class BoardArchiveUpdate(BaseModel):
+    archived: bool = Field(True)
+
+
 class BoardGroupCreate(BaseModel):
     name: str = Field(..., max_length=191)
     color_hex: Optional[str] = Field(None, max_length=12)
@@ -116,14 +145,34 @@ class BoardGroupUpdate(BaseModel):
 class BoardColumnCreate(BaseModel):
     name: str = Field(..., max_length=191)
     column_type: BoardColumnType = BoardColumnType.TEXT
-    config_json: Optional[str] = None
+    config: Optional[dict] = None
+
+    @field_validator("config", mode="before")
+    @classmethod
+    def _ensure_config(cls, value):
+        if isinstance(value, str) and value:
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return value
 
 
 class BoardColumnUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=191)
     column_type: Optional[BoardColumnType] = None
     position: Optional[int] = None
-    config_json: Optional[str] = None
+    config: Optional[dict] = None
+
+    @field_validator("config", mode="before")
+    @classmethod
+    def _ensure_config(cls, value):
+        if isinstance(value, str) and value:
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return value
 
 
 class BoardItemCreate(BaseModel):

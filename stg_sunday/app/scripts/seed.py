@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import asyncio
 from datetime import date, timedelta
+import json
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from core.database import AsyncSessionLocal, init_db
 from models.entities import (
@@ -32,6 +33,7 @@ from models.entities import (
     BoardCell,
     BoardColumnType,
 )
+from repositories.sunday import DEFAULT_STATUS_LABELS
 
 
 async def seed() -> None:
@@ -124,13 +126,6 @@ async def seed() -> None:
 
 async def seed_boards() -> None:
     async with AsyncSessionLocal() as session:
-        await session.execute(text("DELETE FROM board_cell_comment"))
-        await session.execute(text("DELETE FROM board_cell"))
-        await session.execute(text("DELETE FROM board_item"))
-        await session.execute(text("DELETE FROM board_column"))
-        await session.execute(text("DELETE FROM board_group"))
-        await session.execute(text("DELETE FROM board"))
-
         result = await session.execute(select(Board).limit(1))
         existing_board = result.scalar_one_or_none()
         if existing_board:
@@ -157,20 +152,21 @@ async def seed_boards() -> None:
         await session.flush()
 
         columns_data = [
-            ("Status", BoardColumnType.STATUS),
-            ("Observação", BoardColumnType.OBSERVATION),
-            ("Cliente", BoardColumnType.CLIENT),
-            ("Responsável", BoardColumnType.PEOPLE),
-            ("Prazo", BoardColumnType.DATE),
+            ("Status", BoardColumnType.STATUS, DEFAULT_STATUS_LABELS),
+            ("Observação", BoardColumnType.OBSERVATION, None),
+            ("Cliente", BoardColumnType.CLIENT, None),
+            ("Responsável", BoardColumnType.PEOPLE, None),
+            ("Prazo", BoardColumnType.DATE, None),
         ]
 
         column_models: list[BoardColumn] = []
-        for position, (name, column_type) in enumerate(columns_data):
+        for position, (name, column_type, labels) in enumerate(columns_data):
             column = BoardColumn(
                 board_id=board.id,
                 name=name,
                 column_type=column_type,
                 position=position,
+                config_json=None if not labels else json.dumps({"labels": labels}),
             )
             session.add(column)
             column_models.append(column)
@@ -181,9 +177,8 @@ async def seed_boards() -> None:
             (group_models[0], "Enviar documentação complementar"),
             (group_models[0], "Coletar assinaturas pendentes"),
         ]
-
         status_map = {
-            BoardColumnType.STATUS: "Em andamento",
+            BoardColumnType.STATUS: "status-progress",
             BoardColumnType.CLIENT: "Cliente Demo",
             BoardColumnType.PEOPLE: "Equipe Fiscal",
             BoardColumnType.DATE: date.today().isoformat(),
