@@ -262,10 +262,8 @@ logs/
 
 # Arquivos específicos do projeto
 stg_sunday/app/static/
-!stg_sunday/app/static/src/assets/
-!stg_sunday/app/static/src/css/
-!stg_sunday/app/static/src/js/
-!stg_sunday/app/static/src/scss/
+!stg_sunday/app/static/src/
+!stg_sunday/app/static/src/**
 stg_sunday/app/static/src/plugins/
 
 # Arquivos de log
