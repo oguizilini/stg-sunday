@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_TABLE = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><polyline points="3 12 5 12 21 12"></polyline><polyline points="3 18 5 18 21 18"></polyline></svg>';
     const ICON_ITEM = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path></svg>';
     const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
+    const ICON_COLUMN_GRIP = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 3h4M5 9h4M5 15h4"/></svg>';
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
         { id: 'status-progress', text: 'Em andamento', color: '#21d4fd' },
@@ -119,6 +120,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let sharedActiveViewport = null;
     let sharedSyncingFromTable = false;
     let sharedSyncingFromBar = false;
+    const selectedRows = new Map();
+    const columnWidthState = new Map();
+    let currentOrderedColumns = [];
+    let currentGridTemplate = '';
+    let observationColumns = [];
+    let reorderableColumns = [];
+    const COLUMN_MIN_WIDTH = 180;
+    const COLUMN_MAX_WIDTH = 520;
+    const COLUMN_DEFAULT_WIDTH = 260;
+    let activeColumnResize = null;
+    let columnDragState = null;
 
     async function fetchJSON(url, options) {
         const response = await fetch(url, options);
@@ -316,8 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setCurrentBoard(board) {
-        if (board !== currentBoard) {
+        const nextBoardId = board?.id ?? null;
+        const currentBoardId = currentBoard?.id ?? null;
+        const isDifferentBoard = nextBoardId !== currentBoardId;
+        if (isDifferentBoard) {
             closeObservationSidebar();
+            selectedRows.clear();
         }
         closeBoardMenu();
         closeColumnMenu();
@@ -325,7 +341,12 @@ document.addEventListener('DOMContentLoaded', () => {
         closeInlineEditor();
 
         currentBoard = board;
-        activeBoardId = board?.id ?? null;
+        activeBoardId = nextBoardId;
+        columnWidthState.clear();
+        currentOrderedColumns = [];
+        currentGridTemplate = '';
+        observationColumns = [];
+        reorderableColumns = [];
         if (board) {
             updateBoardCache(board);
         }
@@ -442,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         boardTitleEl.dataset.action = 'rename-board';
         boardTitleEl.setAttribute('title', 'Clique para editar o nome do quadro');
         boardSubtitleEl.textContent = 'Crie um novo quadro para começar a organização da semana.';
-       summaryGroupsEl.textContent = '0 tabelas';
+        summaryGroupsEl.textContent = '0 tabelas';
         summaryItemsEl.textContent = '0 itens';
         boardListEl.innerHTML = '';
         cleanupTableScrollers();
@@ -464,6 +485,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const groups = [...(board.groups || [])].sort((a, b) => a.position - b.position);
         const columns = [...(board.columns || [])].sort((a, b) => a.position - b.position);
+        refreshColumnOrdering(columns);
+        const orderedColumns = currentOrderedColumns;
+
+        const groupIdSet = new Set(groups.map((g) => g.id));
+        Array.from(selectedRows.keys()).forEach((id) => {
+            if (!groupIdSet.has(id)) {
+                selectedRows.delete(id);
+            }
+        });
 
         const totalGroups = groups.length;
         const totalItems = groups.reduce((acc, group) => acc + (group.items?.length || 0), 0);
@@ -488,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         groups.forEach((group) => {
-            const groupEl = buildGroupElement(board, group, columns);
+            const groupEl = buildGroupElement(board, group, orderedColumns);
             boardListEl.appendChild(groupEl);
 
             if (group.id === recentlyAddedGroupId) {
@@ -496,6 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => groupEl.classList.remove('is-recent'), 1600);
                 setTimeout(() => groupEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 240);
             }
+
+            updateGroupSelectionUI(group.id);
 
             if (recentlyAddedItemId) {
                 const newRow = groupEl.querySelector(`.sunday-table__row[data-item-id="${recentlyAddedItemId}"]`);
@@ -506,6 +538,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        applyColumnLayout();
 
         if (recentlyAddedColumnId) {
             const headerEl = boardListEl.querySelector(`.sunday-column-header[data-column-id="${recentlyAddedColumnId}"]`);
@@ -521,24 +555,94 @@ document.addEventListener('DOMContentLoaded', () => {
         recentlyAddedColumnId = null;
     }
 
-    function getGridTemplate(columnCount) {
-        const count = Math.max(Number(columnCount) || 0, 0);
-        const parts = ['240px'];
-        if (count > 0) {
-            parts.push(`repeat(${count}, minmax(220px, 280px))`);
+    function clampColumnWidth(width) {
+        if (!Number.isFinite(width)) {
+            return COLUMN_DEFAULT_WIDTH;
         }
+        const rounded = Math.round(width);
+        return Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, rounded));
+    }
+
+    function hydrateColumnWidthState(columns) {
+        const validIds = new Set();
+        columns.forEach((column) => {
+            validIds.add(column.id);
+            const widthFromConfig = Number(column?.config?.width);
+            if (Number.isFinite(widthFromConfig)) {
+                columnWidthState.set(column.id, clampColumnWidth(widthFromConfig));
+            } else if (!columnWidthState.has(column.id)) {
+                columnWidthState.set(column.id, COLUMN_DEFAULT_WIDTH);
+            }
+        });
+        Array.from(columnWidthState.keys()).forEach((columnId) => {
+            if (!validIds.has(columnId)) {
+                columnWidthState.delete(columnId);
+            }
+        });
+    }
+
+    function getColumnWidth(columnId) {
+        if (columnWidthState.has(columnId)) {
+            return columnWidthState.get(columnId);
+        }
+        const column = getColumnById(currentBoard, columnId);
+        const widthFromConfig = Number(column?.config?.width);
+        const width = Number.isFinite(widthFromConfig) ? clampColumnWidth(widthFromConfig) : COLUMN_DEFAULT_WIDTH;
+        columnWidthState.set(columnId, width);
+        return width;
+    }
+
+    function getOrderedColumns(columns) {
+        const obs = columns.filter((c) => c.column_type === 'observation');
+        const rest = columns.filter((c) => c.column_type !== 'observation');
+        return obs.concat(rest);
+    }
+
+    function buildGridTemplate(columns) {
+        const parts = ['var(--sunday-checkbox-col-width, 46px)', 'var(--sunday-item-col-width, 240px)'];
+        columns.forEach((column) => {
+            const width = getColumnWidth(column.id);
+            parts.push(`minmax(${COLUMN_MIN_WIDTH}px, ${width}px)`);
+        });
         parts.push('64px');
         return parts.join(' ');
     }
 
-    function buildGroupElement(board, group, columns) {
+    function refreshColumnOrdering(columns) {
+        const ordered = getOrderedColumns(columns);
+        observationColumns = ordered.filter((column) => column.column_type === 'observation');
+        reorderableColumns = ordered.filter((column) => column.column_type !== 'observation');
+        hydrateColumnWidthState(ordered);
+        currentOrderedColumns = ordered;
+        currentGridTemplate = buildGridTemplate(ordered);
+        return ordered;
+    }
+
+    function applyColumnLayout() {
+        if (!currentOrderedColumns.length) {
+            return;
+        }
+        currentGridTemplate = buildGridTemplate(currentOrderedColumns);
+        const heads = boardListEl.querySelectorAll('.sunday-table__head');
+        heads.forEach((head) => {
+            head.style.gridTemplateColumns = currentGridTemplate;
+        });
+        const rows = boardListEl.querySelectorAll('.sunday-table__row');
+        rows.forEach((row) => {
+            row.style.gridTemplateColumns = currentGridTemplate;
+        });
+        updateSharedScrollbarMetrics();
+    }
+
+    function buildGroupElement(board, group, orderedColumns) {
         const groupEl = document.createElement('article');
         groupEl.className = 'sunday-group';
         groupEl.dataset.groupId = group.id;
         const accentColor = group.color_hex || '#4361EE';
         groupEl.style.setProperty('--sunday-group-accent', accentColor);
+        const selectionSet = ensureSelectionSet(group.id);
 
-        const gridTemplate = getGridTemplate(columns.length);
+        const gridTemplate = currentGridTemplate || buildGridTemplate(orderedColumns);
 
         const header = document.createElement('header');
         header.className = 'sunday-group__header';
@@ -579,6 +683,17 @@ document.addEventListener('DOMContentLoaded', () => {
             : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
         actions.appendChild(collapseBtn);
 
+        const deleteSelectedBtn = document.createElement('button');
+        deleteSelectedBtn.type = 'button';
+        deleteSelectedBtn.dataset.action = 'delete-selected';
+        deleteSelectedBtn.dataset.groupId = group.id;
+        deleteSelectedBtn.title = 'Excluir linhas selecionadas';
+        deleteSelectedBtn.className = 'sunday-group__delete-selected';
+        deleteSelectedBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+        deleteSelectedBtn.hidden = true;
+        deleteSelectedBtn.disabled = true;
+        actions.appendChild(deleteSelectedBtn);
+
         const groupMenuBtn = document.createElement('button');
         groupMenuBtn.type = 'button';
         groupMenuBtn.dataset.action = 'group-menu';
@@ -602,25 +717,37 @@ document.addEventListener('DOMContentLoaded', () => {
         head.className = 'sunday-table__head';
         head.style.gridTemplateColumns = gridTemplate;
 
+        const checkboxHeader = document.createElement('span');
+        checkboxHeader.className = 'sunday-table__head-checkbox';
+        head.appendChild(checkboxHeader);
+
         const titleHeader = document.createElement('span');
         titleHeader.textContent = 'Item';
         head.appendChild(titleHeader);
 
-        columns.forEach((column) => {
+        orderedColumns.forEach((column) => {
             const span = document.createElement('span');
+            span.className = 'sunday-table__head-cell';
+            span.dataset.columnId = column.id;
+
             const headerWrapper = document.createElement('div');
             headerWrapper.className = 'sunday-column-header';
             headerWrapper.dataset.columnId = column.id;
+            headerWrapper.dataset.columnType = column.column_type;
 
             const titleBtn = document.createElement('button');
             titleBtn.type = 'button';
             titleBtn.className = 'sunday-column-header__title';
-            titleBtn.dataset.action = 'rename-column';
+            if (column.column_type !== 'observation') {
+                titleBtn.dataset.action = 'rename-column';
+            }
             titleBtn.dataset.columnId = column.id;
 
             const titleSpan = document.createElement('span');
             titleSpan.className = 'sunday-column-title';
-            if (column.name) {
+            if (column.column_type === 'observation') {
+                titleSpan.textContent = 'Observação';
+            } else if (column.name) {
                 titleSpan.textContent = column.name;
             } else {
                 titleSpan.textContent = 'Clique para nomear';
@@ -631,19 +758,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const headerActions = document.createElement('div');
             headerActions.className = 'sunday-column-header__actions';
+            if (column.column_type !== 'observation') {
+                const menuBtn = document.createElement('button');
+                menuBtn.type = 'button';
+                menuBtn.dataset.action = 'column-menu';
+                menuBtn.dataset.columnId = column.id;
+                menuBtn.title = 'Opções da coluna';
+                menuBtn.innerHTML = ICON_MORE;
+                headerActions.appendChild(menuBtn);
+            }
 
-            const menuBtn = document.createElement('button');
-            menuBtn.type = 'button';
-            menuBtn.dataset.action = 'column-menu';
-            menuBtn.dataset.columnId = column.id;
-            menuBtn.title = 'Opções da coluna';
-            menuBtn.innerHTML = ICON_MORE;
+            let dragHandle = null;
+            if (column.column_type !== 'observation') {
+                dragHandle = document.createElement('button');
+                dragHandle.type = 'button';
+                dragHandle.className = 'sunday-column-header__grip';
+                dragHandle.title = 'Arrastar coluna';
+                dragHandle.dataset.columnId = column.id;
+                dragHandle.setAttribute('aria-label', column.name ? `Reordenar coluna ${column.name}` : 'Reordenar coluna');
+                dragHandle.tabIndex = -1;
+                dragHandle.innerHTML = ICON_COLUMN_GRIP;
+                headerWrapper.classList.add('is-reorderable');
+            }
 
-            headerActions.appendChild(menuBtn);
-
-            headerWrapper.append(titleBtn, headerActions);
+            headerWrapper.appendChild(titleBtn);
+            if (dragHandle) {
+                headerWrapper.appendChild(dragHandle);
+            }
+            headerWrapper.appendChild(headerActions);
             span.appendChild(headerWrapper);
+
+            const resizer = document.createElement('span');
+            resizer.className = 'sunday-column-resizer';
+            resizer.dataset.columnId = column.id;
+            resizer.setAttribute('aria-hidden', 'true');
+            span.appendChild(resizer);
+
             head.appendChild(span);
+
+            setupColumnResize(resizer, column.id);
+            setupColumnDrag(headerWrapper, dragHandle, column);
         });
 
         const addColumnHeader = document.createElement('span');
@@ -680,7 +834,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('div');
                 row.className = 'sunday-table__row';
                 row.dataset.itemId = item.id;
+                row.dataset.groupId = group.id;
                 row.style.gridTemplateColumns = gridTemplate;
+
+                const checkboxCell = document.createElement('div');
+                checkboxCell.className = 'sunday-cell sunday-cell--checkbox';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.setAttribute('data-select-row', 'true');
+                checkbox.dataset.groupId = group.id;
+                checkbox.dataset.itemId = item.id;
+                checkbox.setAttribute('aria-label', 'Selecionar linha');
+                checkboxCell.appendChild(checkbox);
+                row.appendChild(checkboxCell);
 
                 const firstCell = document.createElement('div');
                 firstCell.className = 'sunday-cell sunday-cell--item is-clickable';
@@ -696,7 +862,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 row.appendChild(firstCell);
 
-                columns.forEach((column) => {
+                if (selectionSet.has(item.id)) {
+                    row.classList.add('is-selected');
+                    checkbox.checked = true;
+                }
+
+                orderedColumns.forEach((column) => {
                     const cell = document.createElement('div');
                     cell.className = 'sunday-cell';
                     cell.dataset.cellType = column.column_type;
@@ -736,21 +907,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (column.column_type === 'status' || column.column_type === 'label') {
                         cell.classList.add('is-clickable', 'sunday-cell--status');
                         cell.tabIndex = 0;
+                        cell.classList.remove('is-empty');
                         const labelOption = findLabel(column, cellData.raw_value || '');
+                        cell.innerHTML = '';
+                        cell.style.background = '';
+                        cell.style.color = '';
+                        cell.dataset.labelColor = '';
+                        cell.classList.toggle('has-status-label', Boolean(labelOption));
                         if (labelOption) {
-                            const chip = document.createElement('span');
-                            chip.className = 'sunday-label-chip';
-                            chip.textContent = labelOption.text;
-                            chip.style.background = labelOption.color || '#4361EE';
-                            chip.title = labelOption.text;
-                            cell.appendChild(chip);
+                            const colorHex = labelOption.color || '#4361EE';
+                            cell.textContent = labelOption.text;
                             cell.title = labelOption.text;
+                            cell.dataset.labelColor = colorHex;
+                            cell.style.background = colorHex;
+                            cell.style.color = getReadableTextColor(colorHex);
                         } else if (cellData.raw_value) {
                             cell.textContent = cellData.raw_value;
                             cell.title = cellData.raw_value;
+                            const fallbackColor = cellData.color_hex || '#4361EE';
+                            cell.dataset.labelColor = fallbackColor;
+                            cell.style.background = fallbackColor;
+                            cell.style.color = getReadableTextColor(fallbackColor);
+                            cell.classList.add('has-status-label');
                         } else {
                             cell.classList.add('is-empty');
                             cell.innerHTML = '<span class="sunday-cell-placeholder">Selecionar status</span>';
+                            cell.classList.remove('has-status-label');
                         }
                     } else {
                         cell.classList.add('is-clickable');
@@ -792,12 +974,16 @@ document.addEventListener('DOMContentLoaded', () => {
             shortcutRow.className = 'sunday-table__row sunday-table__row--shortcut';
             shortcutRow.style.gridTemplateColumns = gridTemplate;
             shortcutRow.setAttribute('aria-hidden', 'true');
+            const checkboxFiller = document.createElement('div');
+            checkboxFiller.className = 'sunday-cell sunday-cell--checkbox';
+            checkboxFiller.setAttribute('aria-hidden', 'true');
+            shortcutRow.appendChild(checkboxFiller);
             const leadingCell = document.createElement('div');
             leadingCell.className = 'sunday-cell sunday-cell--item';
             leadingCell.setAttribute('aria-hidden', 'true');
             shortcutRow.appendChild(leadingCell);
 
-            columns.forEach(() => {
+            orderedColumns.forEach(() => {
                 const filler = document.createElement('div');
                 filler.className = 'sunday-cell';
                 filler.setAttribute('aria-hidden', 'true');
@@ -826,7 +1012,427 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         groupEl.append(header, table, footer);
+        const validItemIds = new Set((group.items || []).map((item) => item.id));
+        Array.from(selectionSet)
+            .filter((itemId) => !validItemIds.has(itemId))
+            .forEach((itemId) => selectionSet.delete(itemId));
         return groupEl;
+    }
+
+    function setupColumnResize(resizer, columnId) {
+        if (!resizer) {
+            return;
+        }
+        resizer.addEventListener('pointerdown', (event) => {
+            startColumnResize(event, columnId, resizer);
+        });
+    }
+
+    function startColumnResize(event, columnId, resizer) {
+        if (activeColumnResize) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const startWidth = getColumnWidth(columnId);
+        activeColumnResize = {
+            columnId,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startWidth,
+            previousWidth: startWidth,
+            resizer,
+        };
+        if (typeof resizer.setPointerCapture === 'function') {
+            try {
+                resizer.setPointerCapture(event.pointerId);
+            } catch (error) {
+                // ignore capture errors
+            }
+        }
+        document.body.classList.add('sunday-column-resizing');
+        window.addEventListener('pointermove', handleColumnResizeMove);
+        window.addEventListener('pointerup', handleColumnResizeEnd);
+        window.addEventListener('pointercancel', handleColumnResizeEnd);
+    }
+
+    function handleColumnResizeMove(event) {
+        if (!activeColumnResize || event.pointerId !== activeColumnResize.pointerId) {
+            return;
+        }
+        const delta = event.clientX - activeColumnResize.startX;
+        const width = clampColumnWidth(activeColumnResize.startWidth + delta);
+        if (columnWidthState.get(activeColumnResize.columnId) === width) {
+            return;
+        }
+        columnWidthState.set(activeColumnResize.columnId, width);
+        const column = getColumnById(currentBoard, activeColumnResize.columnId);
+        if (column) {
+            if (!column.config) {
+                column.config = {};
+            }
+            column.config.width = width;
+        }
+        applyColumnLayout();
+    }
+
+    async function handleColumnResizeEnd(event) {
+        if (!activeColumnResize || ('pointerId' in event && event.pointerId !== activeColumnResize.pointerId)) {
+            return;
+        }
+        const state = activeColumnResize;
+        activeColumnResize = null;
+        window.removeEventListener('pointermove', handleColumnResizeMove);
+        window.removeEventListener('pointerup', handleColumnResizeEnd);
+        window.removeEventListener('pointercancel', handleColumnResizeEnd);
+        document.body.classList.remove('sunday-column-resizing');
+        if (state.resizer && typeof state.resizer.releasePointerCapture === 'function') {
+            try {
+                state.resizer.releasePointerCapture(state.pointerId);
+            } catch (error) {
+                // ignore release errors
+            }
+        }
+
+        const width = columnWidthState.get(state.columnId) ?? state.previousWidth;
+        if (width === state.previousWidth) {
+            return;
+        }
+
+        try {
+            await persistColumnWidth(state.columnId, width);
+        } catch (error) {
+            columnWidthState.set(state.columnId, state.previousWidth);
+            const column = getColumnById(currentBoard, state.columnId);
+            if (column) {
+                if (!column.config) {
+                    column.config = {};
+                }
+                column.config.width = state.previousWidth;
+            }
+            applyColumnLayout();
+            console.error(error);
+            showToast('Não foi possível salvar a largura da coluna.');
+        }
+    }
+
+    async function persistColumnWidth(columnId, width) {
+        if (!currentBoard) {
+            return;
+        }
+        const column = getColumnById(currentBoard, columnId);
+        if (!column) {
+            return;
+        }
+        const mergedConfig = { ...(column.config || {}) };
+        mergedConfig.width = width;
+        const board = await fetchJSON(`${boardsEndpoint.replace('/boards', '/columns')}/${columnId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config: mergedConfig }),
+        });
+        column.config = mergedConfig;
+        columnWidthState.set(columnId, width);
+        if (board && currentBoard && board.id === currentBoard.id) {
+            Object.assign(currentBoard, board);
+            updateBoardCache(currentBoard);
+        } else if (board) {
+            updateBoardCache(board);
+        } else if (currentBoard) {
+            updateBoardCache(currentBoard);
+        }
+        const latestColumnsSource = board?.id === currentBoard?.id ? board.columns : currentBoard?.columns;
+        const latestColumns = [...(latestColumnsSource || [])].sort((a, b) => a.position - b.position);
+        refreshColumnOrdering(latestColumns);
+        applyColumnLayout();
+    }
+
+    function setupColumnDrag(headerWrapper, grip, column) {
+        if (!headerWrapper || !grip) {
+            if (headerWrapper) {
+                headerWrapper.draggable = false;
+            }
+            return;
+        }
+        headerWrapper.draggable = true;
+        headerWrapper.addEventListener('dragstart', onColumnDragStart);
+        headerWrapper.addEventListener('dragend', onColumnDragEnd);
+        headerWrapper.addEventListener('dragover', onColumnDragOver);
+        headerWrapper.addEventListener('dragleave', onColumnDragLeave);
+        headerWrapper.addEventListener('drop', onColumnDrop);
+
+        grip.addEventListener('pointerdown', (event) => startColumnDrag(event, headerWrapper, grip, column.id));
+        grip.addEventListener('pointerup', () => cancelColumnDragPreparation(headerWrapper, grip));
+        grip.addEventListener('pointercancel', () => cancelColumnDragPreparation(headerWrapper, grip));
+    }
+
+    function startColumnDrag(event, headerWrapper, grip, columnId) {
+        event.preventDefault();
+        event.stopPropagation();
+        columnDragState = {
+            columnId,
+            sourceWrapper: headerWrapper,
+            grip,
+            pointerId: event.pointerId,
+            dragReady: true,
+            dragging: false,
+            dropTarget: null,
+        };
+        headerWrapper.dataset.dragReady = 'true';
+        headerWrapper.classList.add('is-drag-ready');
+        grip.classList.add('is-grabbing');
+        if (typeof grip.setPointerCapture === 'function') {
+            try {
+                grip.setPointerCapture(event.pointerId);
+            } catch (error) {
+                // ignore capture errors
+            }
+        }
+    }
+
+    function cancelColumnDragPreparation(headerWrapper, grip) {
+        if (!columnDragState || columnDragState.dragging) {
+            return;
+        }
+        headerWrapper.classList.remove('is-drag-ready');
+        headerWrapper.removeAttribute('data-drag-ready');
+        grip?.classList.remove('is-grabbing');
+        if (grip && typeof grip.releasePointerCapture === 'function') {
+            const pointerId = columnDragState?.pointerId;
+            if (pointerId) {
+                try {
+                    grip.releasePointerCapture(pointerId);
+                } catch (error) {
+                    // ignore release errors
+                }
+            }
+        }
+        columnDragState = null;
+    }
+
+    function onColumnDragStart(event) {
+        const wrapper = event.currentTarget;
+        const columnId = Number(wrapper.dataset.columnId);
+        if (!columnDragState || columnDragState.columnId !== columnId || !wrapper.dataset.dragReady) {
+            event.preventDefault();
+            return;
+        }
+
+        columnDragState.dragging = true;
+        wrapper.classList.add('is-dragging');
+        wrapper.classList.remove('is-drag-ready');
+        wrapper.removeAttribute('data-drag-ready');
+        document.body.classList.add('sunday-column-dragging');
+        clearDragIndicators();
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', String(columnId));
+        }
+    }
+
+    function onColumnDragEnd() {
+        resetColumnDragState();
+    }
+
+    function onColumnDragOver(event) {
+        if (!columnDragState?.dragging) {
+            return;
+        }
+        const wrapper = event.currentTarget;
+        const targetId = Number(wrapper.dataset.columnId);
+        if (!targetId || targetId === columnDragState.columnId) {
+            return;
+        }
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+        const existingTarget = columnDragState.dropTarget;
+        if (existingTarget && existingTarget.wrapper !== wrapper) {
+            existingTarget.wrapper.classList.remove('is-drop-before', 'is-drop-after');
+        }
+        const rect = wrapper.getBoundingClientRect();
+        const isAfter = event.clientX - rect.left > rect.width / 2;
+        wrapper.classList.toggle('is-drop-after', isAfter);
+        wrapper.classList.toggle('is-drop-before', !isAfter);
+        columnDragState.dropTarget = { columnId: targetId, isAfter, wrapper };
+    }
+
+    function onColumnDragLeave(event) {
+        const wrapper = event.currentTarget;
+        wrapper.classList.remove('is-drop-before', 'is-drop-after');
+        if (columnDragState?.dropTarget?.wrapper === wrapper) {
+            columnDragState.dropTarget = null;
+        }
+    }
+
+    async function onColumnDrop(event) {
+        if (!columnDragState?.dragging) {
+            return;
+        }
+        event.preventDefault();
+        const wrapper = event.currentTarget;
+        const targetId = Number(wrapper.dataset.columnId);
+        const sourceId = columnDragState.columnId;
+        if (!targetId || targetId === sourceId) {
+            resetColumnDragState();
+            return;
+        }
+        let isAfter = false;
+        if (columnDragState.dropTarget && columnDragState.dropTarget.wrapper === wrapper) {
+            isAfter = columnDragState.dropTarget.isAfter;
+        } else {
+            const rect = wrapper.getBoundingClientRect();
+            isAfter = event.clientX - rect.left > rect.width / 2;
+        }
+        resetColumnDragState();
+        await persistColumnReorder(sourceId, targetId, isAfter);
+    }
+
+    function clearDragIndicators() {
+        const indicators = boardListEl.querySelectorAll('.sunday-column-header.is-drop-before, .sunday-column-header.is-drop-after');
+        indicators.forEach((el) => el.classList.remove('is-drop-before', 'is-drop-after'));
+    }
+
+    function resetColumnDragState() {
+        if (!columnDragState) {
+            return;
+        }
+        if (columnDragState.grip && typeof columnDragState.grip.releasePointerCapture === 'function' && columnDragState.pointerId != null) {
+            try {
+                columnDragState.grip.releasePointerCapture(columnDragState.pointerId);
+            } catch (error) {
+                // ignore
+            }
+        }
+        columnDragState.sourceWrapper?.classList.remove('is-drag-ready', 'is-dragging');
+        columnDragState.sourceWrapper?.removeAttribute('data-drag-ready');
+        columnDragState.grip?.classList.remove('is-grabbing');
+        document.body.classList.remove('sunday-column-dragging');
+        clearDragIndicators();
+        columnDragState = null;
+    }
+
+    async function persistColumnReorder(sourceId, targetId, isAfter) {
+        if (!currentBoard) {
+            return;
+        }
+        const restIds = reorderableColumns.map((column) => column.id);
+        const sourceIndex = restIds.indexOf(sourceId);
+        const targetIndex = restIds.indexOf(targetId);
+        if (sourceIndex === -1 || targetIndex === -1) {
+            return;
+        }
+        const sequence = restIds.slice();
+        sequence.splice(sourceIndex, 1);
+        const adjustedTargetIndex = sequence.indexOf(targetId);
+        const insertIndex = Math.max(0, Math.min(sequence.length, adjustedTargetIndex + (isAfter ? 1 : 0)));
+        sequence.splice(insertIndex, 0, sourceId);
+        const desiredPosition = observationColumns.length + sequence.indexOf(sourceId);
+        try {
+            const board = await fetchJSON(`${boardsEndpoint.replace('/boards', '/columns')}/${sourceId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ position: desiredPosition }),
+            });
+            setCurrentBoard(board);
+        } catch (error) {
+            console.error(error);
+            showToast('Não foi possível mover a coluna.');
+        }
+    }
+
+    function getReadableTextColor(hexColor) {
+        if (!hexColor || typeof hexColor !== 'string') {
+            return '#0f172a';
+        }
+        const clean = hexColor.replace('#', '');
+        if (clean.length !== 6) {
+            return '#0f172a';
+        }
+        const r = parseInt(clean.slice(0, 2), 16);
+        const g = parseInt(clean.slice(2, 4), 16);
+        const b = parseInt(clean.slice(4, 6), 16);
+        if ([r, g, b].some(Number.isNaN)) {
+            return '#0f172a';
+        }
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.6 ? '#0f172a' : '#ffffff';
+    }
+
+    function ensureSelectionSet(groupId) {
+        if (!selectedRows.has(groupId)) {
+            selectedRows.set(groupId, new Set());
+        }
+        return selectedRows.get(groupId);
+    }
+
+    function updateGroupSelectionUI(groupId) {
+        const selection = ensureSelectionSet(groupId);
+        const groupEl = boardListEl.querySelector(`.sunday-group[data-group-id="${groupId}"]`);
+        if (!groupEl) {
+            return;
+        }
+        const deleteBtn = groupEl.querySelector('[data-action="delete-selected"]');
+        if (deleteBtn) {
+            const hasSelection = selection.size > 0;
+            deleteBtn.hidden = !hasSelection;
+            deleteBtn.disabled = !hasSelection;
+            const label = hasSelection
+                ? `Excluir ${selection.size} linha${selection.size > 1 ? 's' : ''}`
+                : 'Excluir linhas selecionadas';
+            deleteBtn.setAttribute('aria-label', label);
+            deleteBtn.title = label;
+        }
+        const rows = groupEl.querySelectorAll('.sunday-table__row');
+        rows.forEach((row) => {
+            const rowId = Number(row.dataset.itemId);
+            const isSelected = selection.has(rowId);
+            row.classList.toggle('is-selected', isSelected);
+            const checkbox = row.querySelector('input[data-select-row]');
+            if (checkbox) {
+                checkbox.checked = isSelected;
+            }
+        });
+    }
+
+    async function deleteSelectedRows(groupId) {
+        const selection = ensureSelectionSet(groupId);
+        if (!selection.size) {
+            return;
+        }
+        const confirm = await confirmAction({
+            title: 'Excluir linhas selecionadas',
+            message: selection.size === 1 ? 'Deseja excluir a linha selecionada?' : `Deseja excluir ${selection.size} linhas selecionadas?`,
+            confirmText: 'Excluir',
+        });
+        if (!confirm) {
+            return;
+        }
+        try {
+            const itemIds = Array.from(selection);
+            let latestBoard = currentBoard;
+            for (const itemId of itemIds) {
+                latestBoard = await fetchJSON(`${boardsEndpoint.replace('/boards', '/items')}/${itemId}`, {
+                    method: 'DELETE',
+                });
+            }
+            selectedRows.set(groupId, new Set());
+            updateGroupSelectionUI(groupId);
+            if (latestBoard) {
+                setCurrentBoard(latestBoard);
+                await loadBoardDetail(latestBoard.id);
+            } else if (currentBoard) {
+                await loadBoardDetail(currentBoard.id);
+            }
+            showToast(itemIds.length === 1 ? 'Linha excluída.' : 'Linhas excluídas.');
+        } catch (error) {
+            console.error(error);
+            showToast('Não foi possível excluir as linhas selecionadas.');
+            if (currentBoard) {
+                await loadBoardDetail(currentBoard.id);
+            }
+        }
     }
 
     function formatCellValue(type, rawValue) {
@@ -1007,6 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.innerHTML = `
             <ul>
                 <li data-action="rename-group" data-group-id="${groupId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Renomear</li>
+                <li data-action="change-group-color" data-group-id="${groupId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 10.35 3H11a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V11c0 .66.26 1.3.73 1.77z"></path></svg> Alterar cor</li>
                 <li data-action="delete-group" data-group-id="${groupId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14H7L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg> Excluir tabela</li>
             </ul>
         `;
@@ -1033,6 +1640,38 @@ document.addEventListener('DOMContentLoaded', () => {
             closeGroupMenu();
             if (action === 'rename-group') {
                 startInlineGroupRename(targetGroupId);
+            } else if (action === 'change-group-color') {
+                closeGroupMenu();
+                // paleta rápida
+                const colors = ['#4361EE', '#21d4fd', '#43cea2', '#ff6b6b', '#f7b731', '#8e44ad'];
+                const palette = document.createElement('div');
+                palette.className = 'sunday-board-menu';
+                palette.innerHTML = `<ul style="display:flex;gap:8px;padding:8px 12px;">${colors.map(c => `<li data-action="apply-group-color" data-group-id="${targetGroupId}" data-color="${c}" title="${c}" style="width:18px;height:18px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,.15);"></li>`).join('')}</ul>`;
+                document.body.appendChild(palette);
+                const rect = trigger.getBoundingClientRect();
+                positionFloatingMenu(palette, rect, { alignRight: true, offset: 8 });
+                const closer = (ev) => {
+                    if (!palette.contains(ev.target)) {
+                        palette.remove();
+                        document.removeEventListener('click', closer, true);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closer, true), 0);
+                palette.addEventListener('click', async (ev) => {
+                    const sw = ev.target.closest('[data-action="apply-group-color"]');
+                    if (!sw) return;
+                    const color = sw.dataset.color;
+                    try {
+                        const board = await fetchJSON(`${boardsEndpoint.replace('/boards', '/groups')}/${targetGroupId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ color_hex: color })
+                        });
+                        setCurrentBoard(board);
+                        await loadBoardDetail(board.id);
+                    } catch (e) { console.error(e); }
+                    palette.remove();
+                });
             } else if (action === 'delete-group') {
                 await deleteGroup(targetGroupId);
             }
@@ -1358,6 +1997,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    wrapper.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !target.hasAttribute('data-select-row')) {
+            return;
+        }
+        const groupId = Number(target.dataset.groupId);
+        const itemId = Number(target.dataset.itemId);
+        if (Number.isNaN(groupId) || Number.isNaN(itemId)) {
+            return;
+        }
+        const selection = ensureSelectionSet(groupId);
+        if (target.checked) {
+            selection.add(itemId);
+        } else {
+            selection.delete(itemId);
+        }
+        updateGroupSelectionUI(groupId);
+        event.stopPropagation();
+    });
+
     wrapper.addEventListener('click', async (event) => {
         const actionElement = event.target.closest('[data-action]');
         if (!actionElement) {
@@ -1430,6 +2089,14 @@ document.addEventListener('DOMContentLoaded', () => {
             closeColumnMenu();
             closeGroupMenu();
             startInlineBoardRename();
+            return;
+        }
+
+        if (action === 'delete-selected') {
+            const groupId = Number(actionElement.dataset.groupId);
+            if (groupId) {
+                await deleteSelectedRows(groupId);
+            }
             return;
         }
 
