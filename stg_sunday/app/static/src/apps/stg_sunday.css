@@ -104,6 +104,7 @@ body.stg-sunday-page {
     --sunday-sticky-col-1-bg: #f8faff;
     --sunday-sticky-col-2-bg: #ffffff;
     --sunday-sticky-col-3-bg: #ffffff;
+    /* cabeçalho usa transparência como padrão (tema claro) */
 }
 
 body.stg-sunday-page:not(.dark) {
@@ -114,6 +115,7 @@ body.dark.stg-sunday-page {
     --sunday-sticky-col-1-bg: #1d2a45;
     --sunday-sticky-col-2-bg: #17233a;
     --sunday-sticky-col-3-bg: #17233a;
+    /* cabeçalho usa transparência como padrão (tema escuro) */
 }
 
 body.sunday-modal-open {
@@ -138,6 +140,11 @@ textarea {
     gap: var(--space-12);
     padding: var(--space-12);
     min-height: calc(100vh - var(--space-20));
+}
+
+/* Reduzir o espaço superior entre o topbar e o conteúdo útil */
+.stg-sunday-wrapper {
+    padding-top: var(--space-6);
 }
 
 @media (max-width: 1280px) {
@@ -359,7 +366,7 @@ body.stg-sunday-page:not(.dark) .sidebar-empty {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--space-10);
+    gap: var(--space-8);
     min-width: 0;
 }
 
@@ -370,7 +377,7 @@ body.stg-sunday-page:not(.dark) .sidebar-empty {
     gap: var(--space-10);
     background: var(--color-surface-1);
     border-radius: var(--radius-lg);
-    padding: var(--space-10);
+    padding: var(--space-8);
     box-shadow: var(--shadow-card);
     position: relative;
     overflow: hidden;
@@ -420,7 +427,7 @@ body.stg-sunday-page:not(.dark) .main-header::after {
 
 .sunday-logo img {
     display: block;
-    height: 100%;
+    height: 160%;
     width: auto;
     max-width: none;
 }
@@ -701,6 +708,8 @@ body.dark .search-input::placeholder {
     gap: var(--space-10);
 }
 
+/* Floating header (fallback JS) */
+
 .sunday-board-empty {
     border-radius: var(--radius-lg);
     border: 2px dashed var(--color-border-strong);
@@ -810,12 +819,14 @@ body.dark .sunday-cell--ghost button:hover {
 }
 
 .sunday-scrollbar {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: var(--space-6);
-    width: 100%;
-    max-width: 100%;
+    width: 100vw;
+    max-width: none;
     height: 18px;
-    margin-top: var(--space-6);
+    margin-top: 0;
     border-radius: var(--radius-pill);
     border: 1px solid var(--color-border-soft);
     background: rgba(255, 255, 255, 0.88);
@@ -865,7 +876,8 @@ body.dark .sunday-group::after {
 }
 
 body.dark .sunday-table__head {
-    background: transparent;
+    --sunday-header-bg: rgba(23, 35, 58, 0.96);
+    background: var(--sunday-header-bg);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -1057,6 +1069,9 @@ body.dark .sunday-group__delete-selected:hover {
     z-index: 2;
 }
 
+/* Fundo do cabeçalho para colunas não-stickies (contraste sutil) */
+/* Remover fundo nos headers não-stickies; fundo transparente (contraste vem do conteúdo) */
+
 /* Delimitação visual do início do scroll: barra com a cor do título da tabela */
 .sunday-group .sunday-table__head span:nth-child(3),
 .sunday-group .sunday-table__row .sunday-cell:nth-child(3) {
@@ -1069,42 +1084,26 @@ body.dark .sunday-group .sunday-table__row .sunday-cell:nth-child(3) {
     border-right-color: var(--sunday-group-accent) !important;
 }
 
+/* Header stickies: usar as mesmas cores das linhas e recortar conteúdo */
 body.stg-sunday-page .sunday-table__head span:first-child,
+body.stg-sunday-page .sunday-table__head span:nth-child(2),
+body.stg-sunday-page .sunday-table__head span:nth-child(3) {
+    background: transparent !important;
+}
+
+/* Linhas: garantir fundo sólido nas 3 primeiras colunas fixas para evitar sobreposição visual */
 body.stg-sunday-page .sunday-table__row .sunday-cell:first-child {
     background: var(--sunday-sticky-col-1-bg) !important;
 }
-
-body.stg-sunday-page .sunday-table__head span:nth-child(2),
 body.stg-sunday-page .sunday-table__row .sunday-cell:nth-child(2) {
     background: var(--sunday-sticky-col-2-bg) !important;
 }
-
-body.stg-sunday-page .sunday-table__head span:nth-child(3),
 body.stg-sunday-page .sunday-table__row .sunday-cell:nth-child(3) {
     background: var(--sunday-sticky-col-3-bg) !important;
 }
 
-body.stg-sunday-page .sunday-table__head span:nth-child(1)::before,
-body.stg-sunday-page .sunday-table__head span:nth-child(2)::before,
-body.stg-sunday-page .sunday-table__head span:nth-child(3)::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: inherit;
-    z-index: -1;
-}
-
-body.stg-sunday-page .sunday-table__head span:nth-child(1)::before {
-    background: var(--sunday-sticky-col-1-bg);
-}
-
-body.stg-sunday-page .sunday-table__head span:nth-child(2)::before {
-    background: var(--sunday-sticky-col-2-bg);
-}
-
-body.stg-sunday-page .sunday-table__head span:nth-child(3)::before {
-    background: var(--sunday-sticky-col-3-bg);
-}
+/* Não usar pseudo-camada; o próprio span tem fundo sólido */
+body.stg-sunday-page .sunday-table__head span:nth-child(-n + 3)::before { content: none; }
 
 body.stg-sunday-page:not(.dark) .sunday-table__head span:first-child > .sunday-column-header,
 body.stg-sunday-page:not(.dark) .sunday-table__head span:nth-child(2) > .sunday-column-header,
@@ -1137,7 +1136,8 @@ body.dark .sunday-table__row.is-selected .sunday-cell:nth-child(2) {
 }
 
 body.stg-sunday-page:not(.dark) .sunday-table__head {
-    background: transparent;
+    --sunday-header-bg: #ecf3ff;
+    background: var(--sunday-header-bg);
     border-bottom: 2px solid rgba(10, 110, 253, 0.2);
 }
 
@@ -1145,13 +1145,14 @@ body.stg-sunday-page:not(.dark) .sunday-table__head span {
     color: #1b2747;
 }
 
+/* Tema claro: manter cabeçalho transparente nas colunas não-fixas */
 body.stg-sunday-page:not(.dark) .sunday-table__head span:not(:nth-child(-n + 3)) {
     background: transparent;
 }
 
-.sunday-table__head span:first-child { z-index: 6; }
-.sunday-table__head span:nth-child(2) { z-index: 5; }
-.sunday-table__head span:nth-child(3) { z-index: 4; }
+.sunday-table__head span:first-child { z-index: 6 !important; }
+.sunday-table__head span:nth-child(2) { z-index: 5 !important; }
+.sunday-table__head span:nth-child(3) { z-index: 4 !important; }
 
 .sunday-column-header {
     display: flex;
@@ -1159,6 +1160,12 @@ body.stg-sunday-page:not(.dark) .sunday-table__head span:not(:nth-child(-n + 3))
     gap: var(--space-2);
     width: 100%;
     position: relative;
+}
+
+/* Durante edição do título da coluna, esconder conteúdo antigo */
+.sunday-column-header.is-editing > *:not(.sunday-inline-editor) {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .sunday-column-header__title {
@@ -1270,62 +1277,29 @@ body.sunday-column-dragging .sunday-column-header__grip {
 .sunday-column-resizer {
     position: absolute;
     top: 0;
-    right: -4px;
-    width: 10px;
+    right: -7px;
+    width: 14px;
     height: 100%;
     cursor: col-resize;
     z-index: 8;
     touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(27, 39, 71, 0.6);
+    opacity: 1 !important;
 }
 
-.sunday-column-resizer::before {
-    content: '';
-    position: absolute;
-    inset: 6px 2px;
-    border-radius: 999px;
-    background: rgba(27, 39, 71, 0.05);
-    transition: background var(--transition-fast);
-}
-
-.sunday-column-resizer::after {
-    content: '';
-    position: absolute;
-    top: 8px;
-    bottom: 8px;
-    left: 50%;
-    width: 2px;
-    transform: translateX(-50%);
-    border-radius: 999px;
-    background: rgba(27, 39, 71, 0.25);
-    transition: background var(--transition-fast);
-}
-
-.sunday-column-resizer:hover::before,
-body.sunday-column-resizing .sunday-column-resizer::before {
-    background: rgba(10, 110, 253, 0.12);
-}
-
-.sunday-column-resizer:hover::after,
-body.sunday-column-resizing .sunday-column-resizer::after {
-    background: var(--color-accent);
-}
-
-body.dark .sunday-column-resizer::before {
-    background: rgba(240, 246, 255, 0.07);
-}
-
-body.dark .sunday-column-resizer::after {
-    background: rgba(240, 246, 255, 0.32);
-}
-
+/* Remover qualquer fundo/linha no resizer para deixar o header visível */
+.sunday-column-resizer::before,
+.sunday-column-resizer::after,
+body.sunday-column-resizing .sunday-column-resizer::before,
+body.sunday-column-resizing .sunday-column-resizer::after,
+body.dark .sunday-column-resizer::before,
+body.dark .sunday-column-resizer::after,
 body.dark .sunday-column-resizer:hover::before,
-body.dark.sunday-column-resizing .sunday-column-resizer::before {
-    background: rgba(90, 139, 255, 0.2);
-}
-
-body.dark .sunday-column-resizer:hover::after,
-body.dark.sunday-column-resizing .sunday-column-resizer::after {
-    background: rgba(122, 167, 255, 0.95);
+body.dark .sunday-column-resizer:hover::after {
+    content: none;
 }
 
 .sunday-column-header.is-reorderable {
@@ -1388,11 +1362,37 @@ body.sunday-column-resizing {
     cursor: col-resize;
 }
 
+/* Avatar de arraste da coluna */
+.sunday-column-drag-avatar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translate(-9999px, -9999px);
+    pointer-events: none;
+    z-index: 9999;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-floating);
+    border: 1px solid var(--color-border-soft);
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    opacity: 0.95;
+}
+
+body.dark .sunday-column-drag-avatar {
+    background: rgba(23, 35, 58, 0.98);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
 .sunday-cell--checkbox {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-6) var(--space-4);
+    padding: var(--space-4) var(--space-3);
     border-right: 1px solid var(--color-border-soft);
     background: transparent;
     min-width: var(--sunday-checkbox-col-width);
@@ -1502,14 +1502,14 @@ body.dark .sunday-table__row.is-selected:hover {
 }
 
 .sunday-cell {
-    padding: var(--space-5) var(--space-8);
+    padding: var(--space-3) var(--space-6);
     border-right: 1px solid var(--color-border-soft);
     display: flex;
     align-items: center;
     gap: var(--space-3);
     font-size: 0.9rem;
     color: var(--color-text-primary);
-    min-height: 34px;
+    min-height: 28px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2181,3 +2181,21 @@ body.stg-sunday-page:not(.dark) .sunday-modal__body select {
 .sunday-table__head span:first-child { z-index: 6 !important; }
 .sunday-table__head span:nth-child(2) { z-index: 5 !important; }
 .sunday-table__head span:nth-child(3) { z-index: 4 !important; }
+body.dark .sunday-column-resizer {
+    color: rgba(240, 246, 255, 0.6);
+}
+
+.sunday-column-resizer svg {
+    pointer-events: none;
+    width: 12px;
+    height: 16px;
+}
+
+.sunday-column-resizer svg,
+.sunday-column-resizer svg path {
+    stroke: currentColor !important;
+}
+
+.sunday-column-resizer:hover {
+    color: var(--color-accent);
+}

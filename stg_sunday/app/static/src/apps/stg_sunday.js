@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_ITEM = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path></svg>';
     const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
     const ICON_COLUMN_GRIP = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 3h4M5 9h4M5 15h4"/></svg>';
+    const ICON_RESIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4L1 7l2 3"/><path d="M7 4l2 3-2 3"/></svg>';
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
         { id: 'status-progress', text: 'Em andamento', color: '#21d4fd' },
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const COLUMN_DEFAULT_WIDTH = 260;
     let activeColumnResize = null;
     let columnDragState = null;
+    let columnDragAvatar = null;
 
     async function fetchJSON(url, options) {
         const response = await fetch(url, options);
@@ -792,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resizer.className = 'sunday-column-resizer';
             resizer.dataset.columnId = column.id;
             resizer.setAttribute('aria-hidden', 'true');
+            resizer.innerHTML = ICON_RESIZE;
             span.appendChild(resizer);
 
             head.appendChild(span);
@@ -1154,43 +1157,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        headerWrapper.draggable = true;
-        headerWrapper.addEventListener('dragstart', onColumnDragStart);
-        headerWrapper.addEventListener('dragend', onColumnDragEnd);
-        headerWrapper.addEventListener('dragover', onColumnDragOver);
-        headerWrapper.addEventListener('dragleave', onColumnDragLeave);
-        headerWrapper.addEventListener('drop', onColumnDrop);
-
-        grip.addEventListener('pointerdown', (event) => startColumnDrag(event, headerWrapper, grip, column.id));
-        grip.addEventListener('pointerup', () => cancelColumnDragPreparation(headerWrapper, grip));
-        grip.addEventListener('pointercancel', () => cancelColumnDragPreparation(headerWrapper, grip));
+        // Preferir DnD via Pointer API para suavidade e controle total
+        headerWrapper.draggable = false;
+        grip.addEventListener('pointerdown', (event) => beginColumnPointerDrag(event, headerWrapper, grip, column.id));
+        grip.addEventListener('pointerup', () => finishColumnPointerPrep(headerWrapper, grip));
+        grip.addEventListener('pointercancel', () => finishColumnPointerPrep(headerWrapper, grip));
     }
-
-    function startColumnDrag(event, headerWrapper, grip, columnId) {
-        event.preventDefault();
-        event.stopPropagation();
-        columnDragState = {
-            columnId,
-            sourceWrapper: headerWrapper,
-            grip,
-            pointerId: event.pointerId,
-            dragReady: true,
-            dragging: false,
-            dropTarget: null,
-        };
-        headerWrapper.dataset.dragReady = 'true';
-        headerWrapper.classList.add('is-drag-ready');
-        grip.classList.add('is-grabbing');
-        if (typeof grip.setPointerCapture === 'function') {
-            try {
-                grip.setPointerCapture(event.pointerId);
-            } catch (error) {
-                // ignore capture errors
-            }
-        }
-    }
-
-    function cancelColumnDragPreparation(headerWrapper, grip) {
+    
+    function finishColumnPointerPrep(headerWrapper, grip) {
         if (!columnDragState || columnDragState.dragging) {
             return;
         }
@@ -1209,84 +1183,89 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         columnDragState = null;
     }
-
-    function onColumnDragStart(event) {
-        const wrapper = event.currentTarget;
-        const columnId = Number(wrapper.dataset.columnId);
-        if (!columnDragState || columnDragState.columnId !== columnId || !wrapper.dataset.dragReady) {
-            event.preventDefault();
-            return;
-        }
-
-        columnDragState.dragging = true;
-        wrapper.classList.add('is-dragging');
-        wrapper.classList.remove('is-drag-ready');
-        wrapper.removeAttribute('data-drag-ready');
-        document.body.classList.add('sunday-column-dragging');
-        clearDragIndicators();
-        if (event.dataTransfer) {
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', String(columnId));
-        }
-    }
-
-    function onColumnDragEnd() {
-        resetColumnDragState();
-    }
-
-    function onColumnDragOver(event) {
-        if (!columnDragState?.dragging) {
-            return;
-        }
-        const wrapper = event.currentTarget;
-        const targetId = Number(wrapper.dataset.columnId);
-        if (!targetId || targetId === columnDragState.columnId) {
-            return;
-        }
+    
+    function beginColumnPointerDrag(event, headerWrapper, grip, columnId) {
         event.preventDefault();
-        if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = 'move';
+        event.stopPropagation();
+        columnDragState = {
+            columnId,
+            sourceWrapper: headerWrapper,
+            grip,
+            pointerId: event.pointerId,
+            dragging: true,
+            dropTarget: null,
+        };
+        document.body.classList.add('sunday-column-dragging');
+        grip.classList.add('is-grabbing');
+        if (typeof grip.setPointerCapture === 'function') {
+            try { grip.setPointerCapture(event.pointerId); } catch {}
         }
-        const existingTarget = columnDragState.dropTarget;
-        if (existingTarget && existingTarget.wrapper !== wrapper) {
-            existingTarget.wrapper.classList.remove('is-drop-before', 'is-drop-after');
-        }
+        // avatar visual
+        const title = headerWrapper.querySelector('.sunday-column-title')?.textContent || 'Coluna';
+        columnDragAvatar = document.createElement('div');
+        columnDragAvatar.className = 'sunday-column-drag-avatar';
+        columnDragAvatar.innerHTML = `${title}`;
+        document.body.appendChild(columnDragAvatar);
+        moveColumnDragAvatar(event.clientX, event.clientY);
+        window.addEventListener('pointermove', onColumnPointerDragMove);
+        window.addEventListener('pointerup', onColumnPointerDragEnd, { once: true });
+        window.addEventListener('pointercancel', onColumnPointerDragEnd, { once: true });
+    }
+
+    function moveColumnDragAvatar(x, y) {
+        if (!columnDragAvatar) return;
+        columnDragAvatar.style.transform = `translate(${Math.round(x + 10)}px, ${Math.round(y + 10)}px)`;
+    }
+
+    function findHeaderTargetAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        const wrapper = el?.closest?.('.sunday-column-header');
+        if (!wrapper) return null;
+        const targetId = Number(wrapper.dataset.columnId);
+        if (!targetId || targetId === columnDragState.columnId) return null;
+        // Só permitir reordenar entre colunas não-observation
+        const isReorderable = wrapper.dataset.columnType !== 'observation';
+        if (!isReorderable) return null;
         const rect = wrapper.getBoundingClientRect();
-        const isAfter = event.clientX - rect.left > rect.width / 2;
+        const isAfter = x - rect.left > rect.width / 2;
+        return { wrapper, targetId, isAfter };
+    }
+
+    function onColumnPointerDragMove(event) {
+        if (!columnDragState?.dragging) return;
+        moveColumnDragAvatar(event.clientX, event.clientY);
+        const target = findHeaderTargetAt(event.clientX, event.clientY);
+        if (!target) {
+            if (columnDragState.dropTarget) {
+                columnDragState.dropTarget.wrapper.classList.remove('is-drop-before', 'is-drop-after');
+                columnDragState.dropTarget = null;
+            }
+            return;
+        }
+        const { wrapper, isAfter } = target;
+        if (columnDragState.dropTarget && columnDragState.dropTarget.wrapper !== wrapper) {
+            columnDragState.dropTarget.wrapper.classList.remove('is-drop-before', 'is-drop-after');
+        }
         wrapper.classList.toggle('is-drop-after', isAfter);
         wrapper.classList.toggle('is-drop-before', !isAfter);
-        columnDragState.dropTarget = { columnId: targetId, isAfter, wrapper };
+        columnDragState.dropTarget = target;
     }
 
-    function onColumnDragLeave(event) {
-        const wrapper = event.currentTarget;
-        wrapper.classList.remove('is-drop-before', 'is-drop-after');
-        if (columnDragState?.dropTarget?.wrapper === wrapper) {
-            columnDragState.dropTarget = null;
-        }
-    }
-
-    async function onColumnDrop(event) {
-        if (!columnDragState?.dragging) {
+    async function onColumnPointerDragEnd(event) {
+        const state = columnDragState;
+        columnDragState = null;
+        window.removeEventListener('pointermove', onColumnPointerDragMove);
+        document.body.classList.remove('sunday-column-dragging');
+        state?.grip?.classList.remove('is-grabbing');
+        try { state?.grip?.releasePointerCapture?.(state.pointerId); } catch {}
+        if (columnDragAvatar) { columnDragAvatar.remove(); columnDragAvatar = null; }
+        const target = state?.dropTarget;
+        if (!state || !target) {
+            clearDragIndicators();
             return;
         }
-        event.preventDefault();
-        const wrapper = event.currentTarget;
-        const targetId = Number(wrapper.dataset.columnId);
-        const sourceId = columnDragState.columnId;
-        if (!targetId || targetId === sourceId) {
-            resetColumnDragState();
-            return;
-        }
-        let isAfter = false;
-        if (columnDragState.dropTarget && columnDragState.dropTarget.wrapper === wrapper) {
-            isAfter = columnDragState.dropTarget.isAfter;
-        } else {
-            const rect = wrapper.getBoundingClientRect();
-            isAfter = event.clientX - rect.left > rect.width / 2;
-        }
-        resetColumnDragState();
-        await persistColumnReorder(sourceId, targetId, isAfter);
+        target.wrapper.classList.remove('is-drop-before', 'is-drop-after');
+        await persistColumnReorder(state.columnId, target.targetId, target.isAfter);
     }
 
     function clearDragIndicators() {
@@ -1667,8 +1646,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ color_hex: color })
                         });
-                        setCurrentBoard(board);
-                        await loadBoardDetail(board.id);
+                        // Atualização imediata sem refresh: aplicar cor no DOM e estado
+                        if (board && board.id) {
+                            setCurrentBoard(board);
+                        } else {
+                            // fallback: atualizar apenas o grupo atual no DOM
+                            const groupEl = boardListEl.querySelector(`.sunday-group[data-group-id="${targetGroupId}"]`);
+                            if (groupEl) {
+                                groupEl.style.setProperty('--sunday-group-accent', color);
+                                const title = groupEl.querySelector('.sunday-group__title strong');
+                                if (title) title.style.color = color;
+                            }
+                        }
                     } catch (e) { console.error(e); }
                     palette.remove();
                 });
@@ -1926,6 +1915,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         setTimeout(() => document.addEventListener('click', currentLabelPickerHandler, true), 0);
+
+        // Capturar cliques dentro do picker (fora do wrapper)
+        picker.addEventListener('click', (ev) => {
+            const btn = ev.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'select-label') {
+                const cellId = Number(btn.dataset.cellId || cellData.id);
+                const colId = Number(btn.dataset.columnId || column.id);
+                const labelId = btn.dataset.labelId;
+                updateCellValue(cellId, labelId, colId);
+                closeLabelPicker();
+            } else if (action === 'clear-label') {
+                const cellId = Number(btn.dataset.cellId || cellData.id);
+                const colId = Number(btn.dataset.columnId || column.id);
+                updateCellValue(cellId, null, colId);
+                closeLabelPicker();
+            }
+            ev.stopPropagation();
+        });
     }
 
     function openInlineEditor(cellEl, initialValue, inputType = 'text') {
@@ -2507,21 +2516,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const initialName = column.name;
         const editor = document.createElement('div');
         editor.className = 'sunday-inline-editor sunday-inline-editor--column';
-        editor.innerHTML = `<input type="text" value="${initialName}">`;
+        // Abrir editor com input vazio; usar nome atual como placeholder
+        editor.innerHTML = `<input type="text" value="" placeholder="${initialName?.replaceAll('"','&quot;') || ''}">`;
         header.appendChild(editor);
+        header.classList.add('is-editing');
 
         const input = editor.querySelector('input');
         input.focus();
-        input.select();
 
         const finish = async (save) => {
             if (!save) {
                 editor.remove();
+                header.classList.remove('is-editing');
                 return;
             }
             const newName = input.value.trim();
             if (!newName || newName === column.name) {
                 editor.remove();
+                header.classList.remove('is-editing');
                 return;
             }
             try {
@@ -2537,6 +2549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Não foi possível renomear a coluna.');
             } finally {
                 editor.remove();
+                header.classList.remove('is-editing');
             }
         };
 
