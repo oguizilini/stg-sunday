@@ -39,12 +39,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const observationComments = observationSidebar?.querySelector('[data-observation-comments]');
     const observationTitle = observationSidebar?.querySelector('[data-observation-title]');
     const observationSubtitle = observationSidebar?.querySelector('[data-observation-subtitle]');
+    const observationCount = observationSidebar?.querySelector('[data-observation-count]');
+    const observationTabCount = observationSidebar?.querySelector('[data-observation-tab-count]');
+    const observationSubscribers = observationSidebar?.querySelector('[data-observation-subscribers]');
+    const observationEditor = observationSidebar?.querySelector('[data-observation-editor]');
+    const observationToolbar = observationSidebar?.querySelector('[data-observation-toolbar]');
     const confirmModal = document.getElementById('modal-confirm');
     const confirmTitleEl = confirmModal?.querySelector('[data-confirm-title]');
     const confirmMessageEl = confirmModal?.querySelector('[data-confirm-message]');
     const confirmCancelBtn = confirmModal?.querySelector('[data-confirm-cancel]');
     const confirmOkBtn = confirmModal?.querySelector('[data-confirm-ok]');
     const logoImg = wrapper.querySelector('.sunday-logo img');
+    const currentUser = {
+        id: wrapper.dataset.currentUserId ? Number(wrapper.dataset.currentUserId) : null,
+        username: wrapper.dataset.currentUserUsername || 'Colaborador',
+        fullName: wrapper.dataset.currentUserFullname || wrapper.dataset.currentUserUsername || 'Colaborador',
+        avatar: wrapper.dataset.currentUserAvatar || '',
+    };
 
     if (boardTitleEl) {
         boardTitleEl.dataset.action = 'rename-board';
@@ -133,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeColumnResize = null;
     let columnDragState = null;
     let columnDragAvatar = null;
+    let currentCommentMenu = null;
+    let currentCommentMenuHandler = null;
 
     async function fetchJSON(url, options) {
         const response = await fetch(url, options);
@@ -155,6 +168,306 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.classList.add('is-visible');
         setTimeout(() => toast.classList.remove('is-visible'), 2600);
     }
+
+    function escapeHTML(value = '') {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        };
+        return String(value).replace(/[&<>"']/g, (match) => map[match]);
+    }
+
+    function hashString(value = '') {
+        const str = String(value);
+        let hash = 0;
+        for (let i = 0; i < str.length; i += 1) {
+            hash = (hash << 5) - hash + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash);
+    }
+
+    function getAvatarColors(seed = 'default') {
+        const palette = [
+            ['#4c6ef5', '#ffffff'],
+            ['#f08c00', '#1b1b1f'],
+            ['#21d4fd', '#0b2941'],
+            ['#ff6b6b', '#1b1b1f'],
+            ['#6a4c93', '#ffffff'],
+            ['#2ed573', '#08331d'],
+            ['#f72585', '#ffffff'],
+        ];
+        const index = hashString(seed) % palette.length;
+        const [background, color] = palette[index];
+        return { background, color };
+    }
+
+    function getInitials(value = '') {
+        const initials = value
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join('')
+            .toUpperCase();
+        return initials || 'US';
+    }
+
+    function formatObservationDate(value) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+        return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function getCommentAuthor(comment) {
+        if (!comment) {
+            return currentUser.fullName;
+        }
+        if (comment.author_name) {
+            return comment.author_name;
+        }
+        if (comment.author_username) {
+            return comment.author_username;
+        }
+        if (comment.author_id && currentUser.id && comment.author_id === currentUser.id) {
+            return currentUser.fullName;
+        }
+        if (comment.author_id) {
+            return `Usuário ${comment.author_id}`;
+        }
+        return currentUser.fullName;
+    }
+
+    function enhanceCommentAuthorMetadata(comment) {
+        if (!comment) {
+            return comment;
+        }
+        if (!comment.author_name && comment.author_id && currentUser.id && comment.author_id === currentUser.id) {
+            comment.author_name = currentUser.fullName;
+        }
+        if (!comment.author_username && comment.author_id && currentUser.id && comment.author_id === currentUser.id) {
+            comment.author_username = currentUser.username;
+        }
+        if (!comment.author_avatar && comment.author_id && currentUser.id && comment.author_id === currentUser.id && currentUser.avatar) {
+            comment.author_avatar = currentUser.avatar;
+        }
+        comment.is_pinned = Boolean(comment.is_pinned);
+        if (!comment.created_at) {
+            comment.created_at = new Date().toISOString();
+        }
+        return comment;
+    }
+
+    function renderRichText(value = '') {
+        if (!value) {
+            return '';
+        }
+        let html = escapeHTML(value);
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<u>$1</u>');
+        html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+        html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        const lines = html.split(/\n/);
+        const blocks = [];
+        let listType = null;
+        let listBuffer = [];
+
+        const flushList = () => {
+            if (!listType || !listBuffer.length) {
+                listType = null;
+                listBuffer = [];
+                return;
+            }
+            blocks.push(`<${listType}>${listBuffer.join('')}</${listType}>`);
+            listType = null;
+            listBuffer = [];
+        };
+
+        lines.forEach((line) => {
+            const trimmed = line.trim();
+            const isUnordered = /^[-*]\s+/.test(trimmed);
+            const isOrdered = /^\d+\.\s+/.test(trimmed);
+
+            if (isUnordered || isOrdered) {
+                const nextType = isOrdered ? 'ol' : 'ul';
+                if (listType && listType !== nextType) {
+                    flushList();
+                }
+                if (!listType) {
+                    listType = nextType;
+                }
+                const itemContent = trimmed.replace(/^(\d+\.\s+|[-*]\s+)/, '') || '&nbsp;';
+                listBuffer.push(`<li>${itemContent}</li>`);
+            } else {
+                flushList();
+                const safeLine = line.length ? line : '<br>';
+                blocks.push(`<p>${safeLine}</p>`);
+            }
+        });
+
+        flushList();
+        return blocks.join('');
+    }
+
+    function sortObservationComments(comments = []) {
+        return [...comments].sort((a, b) => {
+            const pinDiff = Number(b.is_pinned) - Number(a.is_pinned);
+            if (pinDiff !== 0) {
+                return pinDiff;
+            }
+            const aDate = new Date(a.created_at || 0).getTime();
+            const bDate = new Date(b.created_at || 0).getTime();
+            return bDate - aDate;
+        });
+    }
+
+    function getActiveObservationContext() {
+        if (!currentBoard || !observationState) {
+            return null;
+        }
+        return getCellById(currentBoard, observationState.cellId);
+    }
+
+    function closeCommentMenu() {
+        if (currentCommentMenuHandler) {
+            document.removeEventListener('click', currentCommentMenuHandler, true);
+            currentCommentMenuHandler = null;
+        }
+        currentCommentMenu?.remove();
+        currentCommentMenu = null;
+    }
+
+    function openCommentMenu(trigger, comment) {
+        if (!trigger || !comment) {
+            return;
+        }
+        closeCommentMenu();
+        const menu = document.createElement('div');
+        menu.className = 'observation-comment-menu';
+        const actionLabel = comment.is_pinned ? 'Desafixar do topo' : 'Fixar no topo';
+        const actionType = comment.is_pinned ? 'unpin-comment' : 'pin-comment';
+        menu.innerHTML = `
+            <button type="button" data-action="${actionType}" data-comment-id="${comment.id}">${actionLabel}</button>
+            <button type="button" data-action="delete-comment" data-comment-id="${comment.id}">Excluir atualização</button>
+        `;
+        wrapper.appendChild(menu);
+        const rect = trigger.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
+        let left = rect.left;
+        let top = rect.bottom + 6;
+        if (left + menuRect.width > window.innerWidth - 16) {
+            left = window.innerWidth - menuRect.width - 16;
+        }
+        if (top + menuRect.height > window.innerHeight - 16) {
+            top = rect.top - menuRect.height - 6;
+        }
+        menu.style.left = `${Math.max(16, left)}px`;
+        menu.style.top = `${Math.max(16, top)}px`;
+
+        currentCommentMenuHandler = (event) => {
+            if (!menu.contains(event.target) && event.target !== trigger) {
+                closeCommentMenu();
+            }
+        };
+        document.addEventListener('click', currentCommentMenuHandler, true);
+        currentCommentMenu = menu;
+    }
+
+    function insertTextAtEditor(text, { replaceSelection = true } = {}) {
+        if (!observationEditor) {
+            return;
+        }
+        const start = observationEditor.selectionStart ?? observationEditor.value.length;
+        const end = observationEditor.selectionEnd ?? observationEditor.value.length;
+        const before = observationEditor.value.slice(0, start);
+        const after = observationEditor.value.slice(replaceSelection ? end : start);
+        observationEditor.value = `${before}${text}${after}`;
+        const cursor = before.length + text.length;
+        observationEditor.focus();
+        observationEditor.setSelectionRange(cursor, cursor);
+    }
+
+    function applyFormatToEditor(format) {
+        if (!observationEditor || !format) {
+            return;
+        }
+        const start = observationEditor.selectionStart ?? 0;
+        const end = observationEditor.selectionEnd ?? 0;
+        const value = observationEditor.value;
+        const selected = value.slice(start, end);
+        const fallback = selected || 'texto';
+
+        if (format === 'bold' || format === 'italic' || format === 'underline') {
+            const wrapper = format === 'bold' ? '**' : format === 'italic' ? '_' : '__';
+            const newValue = `${value.slice(0, start)}${wrapper}${fallback}${wrapper}${value.slice(end)}`;
+            observationEditor.value = newValue;
+            const offset = wrapper.length;
+            observationEditor.focus();
+            observationEditor.setSelectionRange(start + offset, start + offset + fallback.length);
+            return;
+        }
+
+        if (format === 'ordered-list' || format === 'unordered-list') {
+            const prefix = format === 'ordered-list' ? '1. ' : '- ';
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const newValue = `${value.slice(0, lineStart)}${prefix}${value.slice(lineStart)}`;
+            observationEditor.value = newValue;
+            const cursor = end + prefix.length;
+            observationEditor.focus();
+            observationEditor.setSelectionRange(cursor, cursor);
+            return;
+        }
+
+        if (format === 'link') {
+            const url = window.prompt('Informe o link (ex.: https://exemplo.com):');
+            if (!url) {
+                return;
+            }
+            const markdown = `[${fallback}](${url})`;
+            const newValue = `${value.slice(0, start)}${markdown}${value.slice(end)}`;
+            observationEditor.value = newValue;
+            const cursor = start + markdown.length;
+            observationEditor.focus();
+            observationEditor.setSelectionRange(cursor, cursor);
+        }
+    }
+
+    function updateObservationButtonCount(cell) {
+        if (!cell) {
+            return;
+        }
+        const button = boardListEl.querySelector(`button[data-cell-id="${cell.id}"] span`);
+        if (button) {
+            button.textContent = String(cell.comments?.length || 0);
+        }
+    }
+
+    observationToolbar?.addEventListener('click', (event) => {
+        const formatButton = event.target.closest('[data-format]');
+        if (formatButton) {
+            event.preventDefault();
+            applyFormatToEditor(formatButton.dataset.format);
+        }
+    });
+
+    observationSidebar?.addEventListener('click', (event) => {
+        const insertButton = event.target.closest('[data-insert]');
+        if (insertButton?.dataset.insert === 'emoji') {
+            event.preventDefault();
+            insertTextAtEditor(' 😊 ');
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeCommentMenu();
+        }
+    });
 
     function openModal(modal) {
         if (!modal) {
@@ -1821,8 +2134,9 @@ document.addEventListener('DOMContentLoaded', () => {
         observationSidebar.classList.add('is-open');
         observationSidebar.setAttribute('aria-hidden', 'false');
         const { cell, item } = getCellById(currentBoard, cellContext.cellId) || {};
-        observationTitle.textContent = `Observações - ${item?.title || ''}`;
-        observationSubtitle.textContent = `Registradas em ${new Date().toLocaleDateString('pt-BR')}`;
+        const friendlyDate = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+        observationTitle.textContent = item?.title || 'Observações';
+        observationSubtitle.textContent = `Sincronizado em ${friendlyDate}`;
         renderObservationComments(cell);
     }
 
@@ -1831,31 +2145,123 @@ document.addEventListener('DOMContentLoaded', () => {
         observationSidebar?.setAttribute('aria-hidden', 'true');
         observationState = null;
         formObservation?.reset();
+        closeCommentMenu();
     }
 
     function renderObservationComments(cell) {
         if (!observationComments) {
             return;
         }
+        closeCommentMenu();
+        const comments = Array.isArray(cell?.comments) ? cell.comments : [];
+        comments.forEach(enhanceCommentAuthorMetadata);
+        const total = comments.length;
+        if (observationCount) {
+            observationCount.textContent = String(total);
+        }
+        if (observationTabCount) {
+            observationTabCount.textContent = String(total);
+        }
+        renderObservationSubscribers(comments);
         observationComments.innerHTML = '';
-        const comments = cell?.comments || [];
-        if (!comments.length) {
+        if (!total) {
             const empty = document.createElement('div');
-            empty.className = 'sunday-comment';
-            empty.innerHTML = '<div class="sunday-comment__meta">Nenhum comentário registrado.</div><p>Use o formulário abaixo para adicionar o primeiro registro.</p>';
+            empty.className = 'observation-feed__empty';
+            empty.innerHTML = `
+                <strong>Nenhuma atualização registrada</strong>
+                <p>Registre decisões, anexe links ou compartilhe comentários para manter o time sincronizado.</p>
+            `;
             observationComments.appendChild(empty);
+            updateObservationButtonCount(cell);
             return;
         }
-        comments.forEach((comment) => {
-            const commentEl = document.createElement('div');
-            commentEl.className = 'sunday-comment';
-            const createdAt = new Date(comment.created_at).toLocaleString('pt-BR');
-            commentEl.innerHTML = `
-                <div class="sunday-comment__meta">Autor: ${comment.author_id || 'Usuário'} · ${createdAt}</div>
-                <p>${comment.content}</p>
-            `;
-            observationComments.appendChild(commentEl);
+        const ordered = sortObservationComments(comments);
+        ordered.forEach((comment) => {
+            observationComments.appendChild(createObservationComment(comment));
         });
+        updateObservationButtonCount(cell);
+    }
+
+    function renderObservationSubscribers(comments) {
+        if (!observationSubscribers) {
+            return;
+        }
+        observationSubscribers.innerHTML = '';
+        const uniqueAuthors = [];
+        const dedupe = new Set();
+        comments.forEach((comment) => {
+            const label = getCommentAuthor(comment);
+            const key = comment.author_id ?? label;
+            if (dedupe.has(key)) {
+                return;
+            }
+            dedupe.add(key);
+            uniqueAuthors.push({ label, seed: key });
+        });
+        const fallbackLabel = currentUser.fullName || currentUser.username || 'Colaborador';
+        const fallbackSeed = currentUser.id || fallbackLabel;
+        const source = uniqueAuthors.length ? uniqueAuthors : [{ label: fallbackLabel, seed: fallbackSeed }];
+        source.slice(0, 3).forEach(({ label, seed }) => {
+            const avatar = document.createElement('span');
+            avatar.className = 'observation-panel__avatar';
+            const { background, color } = getAvatarColors(seed);
+            avatar.style.background = background;
+            avatar.style.color = color;
+            avatar.textContent = getInitials(label);
+            avatar.title = label;
+            observationSubscribers.appendChild(avatar);
+        });
+        if (source.length > 3) {
+            const extra = document.createElement('span');
+            extra.className = 'observation-panel__avatar';
+            extra.textContent = `+${source.length - 3}`;
+            extra.title = `${source.length - 3} colaboradores adicionais`;
+            observationSubscribers.appendChild(extra);
+        }
+        const invite = document.createElement('span');
+        invite.className = 'observation-panel__avatar is-placeholder';
+        invite.textContent = '+';
+        invite.title = 'Adicionar colaborador';
+        observationSubscribers.appendChild(invite);
+    }
+
+    function createObservationComment(comment) {
+        const commentEl = document.createElement('article');
+        commentEl.className = 'observation-comment';
+        const authorName = getCommentAuthor(comment);
+        const timestamp = formatObservationDate(comment?.created_at) || 'Agora mesmo';
+        const avatarSource = comment?.author_avatar;
+        const { background, color } = getAvatarColors(comment?.author_id ?? authorName);
+        const avatarHtml = avatarSource
+            ? `<span class="observation-comment__avatar is-image"><img src="${avatarSource}" alt="${authorName}"></span>`
+            : `<span class="observation-comment__avatar" style="background:${background};color:${color};">${getInitials(authorName)}</span>`;
+        const formattedContent = renderRichText(comment?.content || '');
+        const pinBadge = comment?.is_pinned ? '<span class="observation-comment__pin">Fixado</span>' : '';
+        commentEl.innerHTML = `
+            <div class="observation-comment__header">
+                <div class="observation-comment__author">
+                    ${avatarHtml}
+                    <div class="observation-comment__meta">
+                        <strong>${authorName}</strong>
+                        <span>${timestamp}</span>
+                    </div>
+                    ${pinBadge}
+                </div>
+                <button type="button" class="observation-icon-button" data-action="comment-menu" data-comment-id="${comment.id}" title="Opções da atualização">
+                    ${ICON_MORE}
+                </button>
+            </div>
+            <div class="observation-comment__body">
+                ${formattedContent || '<p><br></p>'}
+            </div>
+            <div class="observation-comment__footer">
+                <button type="button">Curtir</button>
+                <button type="button">Responder</button>
+            </div>
+        `;
+        commentEl.dataset.commentId = String(comment.id);
+        commentEl.classList.toggle('is-pinned', Boolean(comment.is_pinned));
+        return commentEl;
     }
 
     function refreshObservationSidebar() {
@@ -1865,10 +2271,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const { cell } = getCellById(currentBoard, observationState.cellId) || {};
         if (cell) {
             renderObservationComments(cell);
-            const button = boardListEl.querySelector(`button[data-cell-id="${cell.id}"] span`);
-            if (button) {
-                button.textContent = String(cell.comments?.length || 0);
+            updateObservationButtonCount(cell);
+        }
+    }
+
+    async function toggleCommentPin(commentId, shouldPin) {
+        if (!observationState) {
+            return;
+        }
+        try {
+            const updated = await fetchJSON(`${boardsEndpoint.replace('/boards', '/cells')}/${observationState.cellId}/comments/${commentId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_pinned: shouldPin }),
+            });
+            enhanceCommentAuthorMetadata(updated);
+            const context = getActiveObservationContext();
+            if (context) {
+                const comments = context.cell.comments || [];
+                const index = comments.findIndex((item) => item.id === commentId);
+                if (index >= 0) {
+                    comments[index] = { ...comments[index], ...updated };
+                }
+                renderObservationComments(context.cell);
             }
+            showToast(shouldPin ? 'Comentário fixado no topo.' : 'Comentário desafixado.');
+        } catch (error) {
+            console.error(error);
+            showToast('Não foi possível atualizar o comentário.');
+        }
+    }
+
+    async function deleteObservationComment(commentId) {
+        if (!observationState) {
+            return;
+        }
+        try {
+            const response = await fetch(`${boardsEndpoint.replace('/boards', '/cells')}/${observationState.cellId}/comments/${commentId}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}`);
+            }
+            const context = getActiveObservationContext();
+            if (context) {
+                context.cell.comments = (context.cell.comments || []).filter((comment) => comment.id !== commentId);
+                renderObservationComments(context.cell);
+            }
+            showToast('Comentário excluído.');
+        } catch (error) {
+            console.error(error);
+            showToast('Não foi possível excluir o comentário.');
         }
     }
 
@@ -2128,6 +2581,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (action === 'add-column') {
             await addColumnQuick(Number(actionElement.dataset.boardId || currentBoard?.id));
+            return;
+        }
+
+        if (action === 'comment-menu') {
+            const commentId = Number(actionElement.dataset.commentId);
+            const context = getActiveObservationContext();
+            if (!context) {
+                showToast('Selecione uma observação para gerenciar comentários.');
+                return;
+            }
+            const comment = (context.cell.comments || []).find((item) => item.id === commentId);
+            if (comment) {
+                openCommentMenu(actionElement, comment);
+            }
+            return;
+        }
+
+        if (action === 'pin-comment' || action === 'unpin-comment') {
+            const commentId = Number(actionElement.dataset.commentId);
+            closeCommentMenu();
+            toggleCommentPin(commentId, action === 'pin-comment');
+            return;
+        }
+
+        if (action === 'delete-comment') {
+            const commentId = Number(actionElement.dataset.commentId);
+            closeCommentMenu();
+            confirmAction({
+                title: 'Excluir atualização',
+                message: 'Confirma a exclusão definitiva desta atualização?',
+                confirmText: 'Excluir',
+                cancelText: 'Cancelar',
+            }).then((confirmed) => {
+                if (confirmed) {
+                    deleteObservationComment(commentId);
+                }
+            });
             return;
         }
 
@@ -2693,17 +3183,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const comment = await fetchJSON(`${boardsEndpoint.replace('/boards', '/cells')}/${observationState.cellId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content }),
+                body: JSON.stringify({ content, author_id: currentUser.id }),
             });
+            enhanceCommentAuthorMetadata(comment);
             const context = getCellById(currentBoard, observationState.cellId);
             if (context) {
                 context.cell.comments = context.cell.comments || [];
                 context.cell.comments.push(comment);
                 renderObservationComments(context.cell);
-                const button = boardListEl.querySelector(`button[data-cell-id="${context.cell.id}"] span`);
-                if (button) {
-                    button.textContent = String(context.cell.comments.length);
-                }
             }
             formObservation.reset();
             showToast('Comentário registrado.');

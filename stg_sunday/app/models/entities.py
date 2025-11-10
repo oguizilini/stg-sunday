@@ -370,8 +370,21 @@ class BoardCellComment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cell_id: Mapped[int] = mapped_column(ForeignKey("board_cell.id"), nullable=False)
     author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     cell: Mapped[BoardCell] = relationship("BoardCell", back_populates="comments")
     author: Mapped[Optional[User]] = relationship("User")
+
+    @property
+    def author_name(self) -> Optional[str]:
+        if not self.author:
+            return None
+        return getattr(self.author, "full_name", None) or getattr(self.author, "username", None)
+
+    @property
+    def author_username(self) -> Optional[str]:
+        if not self.author:
+            return None
+        return getattr(self.author, "username", None)

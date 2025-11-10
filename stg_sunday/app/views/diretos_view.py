@@ -27,9 +27,27 @@ ui_router = APIRouter()
 async def stg_sunday(request: Request):
     """Página principal da plataforma STG Sunday."""
 
+    user = getattr(request.state, "user", None)
+    username = getattr(user, "username", None) or "oguizilini"
+    full_name = (
+        getattr(user, "full_name", None)
+        or getattr(user, "name", None)
+        or username
+    )
+    avatar_url = getattr(user, "avatar_url", None) or request.url_for(
+        "static",
+        path="src/assets/img/profile-30.png",
+    )
+
     context = {
         "request": request,
         "page": "STG Sunday",
+        "current_user_payload": {
+            "id": getattr(user, "id", None),
+            "username": username,
+            "full_name": full_name,
+            "avatar": avatar_url,
+        },
     }
     return templates.TemplateResponse('diretos/stg_sunday.html', context=context)
 

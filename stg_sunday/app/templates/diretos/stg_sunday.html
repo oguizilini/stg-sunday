@@ -10,7 +10,15 @@
 {% endblock %}
 
 {% block container %}
-    <div class="stg-sunday-wrapper" data-endpoint-boards="{{ url_for('sunday_boards_list') }}">
+    {% set user_payload = current_user_payload or {} %}
+    <div
+        class="stg-sunday-wrapper"
+        data-endpoint-boards="{{ url_for('sunday_boards_list') }}"
+        data-current-user-id="{{ user_payload.id or '' }}"
+        data-current-user-username="{{ user_payload.username or 'oguizilini' }}"
+        data-current-user-fullname="{{ user_payload.full_name or user_payload.username or 'oguizilini' }}"
+        data-current-user-avatar="{{ user_payload.avatar or url_for('static', path='src/assets/img/profile-30.png') }}"
+    >
         <aside class="sunday-board-sidebar" data-board-sidebar>
             <button class="sunday-board-sidebar__toggle" data-action="toggle-sidebar" title="Recolher barra">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -247,26 +255,81 @@
             </div>
         </div>
 
-        <aside class="sunday-sidebar" data-observation-sidebar aria-hidden="true">
-            <div class="sunday-sidebar__header">
-                <div>
-                    <h3 data-observation-title>Observações</h3>
-                    <p class="sunday-sidebar__subtitle" data-observation-subtitle></p>
+        <aside class="sunday-sidebar observation-panel" data-observation-sidebar aria-hidden="true">
+            <div class="observation-panel__content">
+                <header class="observation-panel__header">
+                    <div class="observation-panel__title-group">
+                        <span class="observation-panel__eyebrow">Central de observações</span>
+                        <div class="observation-panel__title-row">
+                            <h3 data-observation-title>Observações</h3>
+                            <span class="observation-panel__count" data-observation-count>0</span>
+                        </div>
+                        <p class="observation-panel__subtitle" data-observation-subtitle></p>
+                    </div>
+                    <div class="observation-panel__header-actions">
+                        <div class="observation-panel__subscribers" data-observation-subscribers>
+                            <span class="observation-panel__avatar is-placeholder" aria-hidden="true">+</span>
+                        </div>
+                        <button type="button" class="observation-icon-button" title="Opções do painel">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        </button>
+                        <button type="button" class="observation-icon-button" data-action="close-observation" title="Fechar painel">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="observation-panel__tabs" role="tablist" aria-label="Seções do painel">
+                    <button type="button" class="observation-tab is-active" aria-selected="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"></path><path d="M9 21V9h6v12"></path></svg>
+                        <span>Atualizações</span>
+                        <span class="observation-tab__badge" data-observation-tab-count>0</span>
+                    </button>
+                    <button type="button" class="observation-tab" disabled aria-disabled="true" title="Disponível em breve">Arquivos</button>
+                    <button type="button" class="observation-tab" disabled aria-disabled="true" title="Disponível em breve">Log de atividade</button>
+                    <button type="button" class="observation-tab observation-tab--ghost" disabled aria-disabled="true" title="Adicionar nova visualização">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                 </div>
-                <button type="button" class="sunday-btn sunday-btn-ghost" data-action="close-observation" title="Fechar painel">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
+
+                <div class="observation-panel__body">
+                    <div class="observation-feed" data-observation-scroll>
+                        <div class="observation-feed__list" data-observation-comments></div>
+                    </div>
+
+                    <form class="observation-composer" data-form-observation autocomplete="off">
+                        <div class="observation-composer__toolbar" aria-label="Ferramentas de edição" data-observation-toolbar>
+                            <button type="button" title="Negrito" data-format="bold"><span>B</span></button>
+                            <button type="button" title="Itálico" data-format="italic"><span>I</span></button>
+                            <button type="button" title="Sublinhar" data-format="underline"><span>U</span></button>
+                            <button type="button" title="Lista ordenada" data-format="ordered-list">1.</button>
+                            <button type="button" title="Lista com marcadores" data-format="unordered-list">•</button>
+                            <button type="button" title="Link" data-format="link">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 1 7 7l-1.5 1.5a5 5 0 0 1-7-7"></path><path d="M14 11a5 5 0 0 1-7-7L8.5 2.5a5 5 0 0 1 7 7"></path><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"></line></svg>
+                            </button>
+                        </div>
+                        <label class="observation-composer__editor">
+                            <span>Escreva uma atualização</span>
+                            <textarea name="content" data-observation-editor placeholder="Escreva uma atualização e mencione outros com @" required></textarea>
+                        </label>
+                        <div class="observation-composer__footer">
+                            <div class="observation-composer__footer-actions">
+                                <button type="button" title="Adicionar arquivo">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                </button>
+                                <button type="button" title="Adicionar GIF">GIF</button>
+                                <button type="button" title="Adicionar emoji" data-insert="emoji">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                                </button>
+                                <button type="button" title="Mencionar alguém">@</button>
+                            </div>
+                            <div class="observation-composer__footer-primary">
+                                <button type="submit" class="sunday-btn sunday-btn-primary">Publicar atualização</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="sunday-sidebar__comments" data-observation-comments></div>
-            <form data-form-observation>
-                <label class="sunday-field">
-                    <span>Registrar comentário</span>
-                    <textarea name="content" placeholder="Escreva um comentário..."></textarea>
-                </label>
-                <div class="sunday-sidebar__actions">
-                    <button type="submit" class="sunday-btn sunday-btn-primary">Enviar comentário</button>
-                </div>
-            </form>
         </aside>
     </div>
 {% endblock %}

@@ -30,6 +30,7 @@ from schemas.sunday import (
     BoardItemUpdate,
     BoardCellUpdate,
     BoardCellCommentCreate,
+    BoardCellCommentUpdate,
 )
 
 GROUP_COLORS = [
@@ -460,3 +461,25 @@ async def create_comment(session: AsyncSession, cell: BoardCell, payload: BoardC
     session.add(comment)
     await session.flush()
     return comment
+
+
+async def get_comment(session: AsyncSession, comment_id: int) -> Optional[BoardCellComment]:
+    stmt = select(BoardCellComment).where(BoardCellComment.id == comment_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def update_comment(
+    session: AsyncSession,
+    comment: BoardCellComment,
+    payload: BoardCellCommentUpdate,
+) -> BoardCellComment:
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(comment, field, value)
+    await session.flush()
+    return comment
+
+
+async def delete_comment(session: AsyncSession, comment: BoardCellComment) -> None:
+    await session.delete(comment)
+    await session.flush()

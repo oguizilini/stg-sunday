@@ -16,6 +16,9 @@ class BoardCellCommentOut(BaseModel):
     author_id: Optional[int]
     content: str
     created_at: datetime
+    is_pinned: bool = False
+    author_name: Optional[str] = None
+    author_username: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -194,3 +197,7 @@ class BoardCellUpdate(BaseModel):
 class BoardCellCommentCreate(BaseModel):
     content: str
     author_id: Optional[int] = None
+
+
+class BoardCellCommentUpdate(BaseModel):
+    is_pinned: Optional[bool] = None

@@ -22,6 +22,7 @@ from schemas.sunday import (
     BoardItemUpdate,
     BoardCellUpdate,
     BoardCellCommentCreate,
+    BoardCellCommentUpdate,
     BoardCellOut,
     BoardCellCommentOut,
 )
@@ -280,3 +281,42 @@ async def create_comment(
     await session.commit()
     await session.refresh(comment)
     return BoardCellCommentOut.model_validate(comment, from_attributes=True)
+
+
+@router.patch(
+    "/cells/{cell_id}/comments/{comment_id}",
+    response_model=BoardCellCommentOut,
+)
+async def update_comment(
+    cell_id: int,
+    comment_id: int,
+    payload: BoardCellCommentUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> BoardCellCommentOut:
+    comment = await repo.get_comment(session, comment_id)
+    if not comment or comment.cell_id != cell_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comentário não encontrado")
+    if not payload.model_fields_set:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nenhuma alteração informada")
+    await repo.update_comment(session, comment, payload)
+    await session.commit()
+    await session.refresh(comment)
+    return BoardCellCommentOut.model_validate(comment, from_attributes=True)
+
+
+@router.delete(
+    "/cells/{cell_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+async def delete_comment(
+    cell_id: int,
+    comment_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    comment = await repo.get_comment(session, comment_id)
+    if not comment or comment.cell_id != cell_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comentário não encontrado")
+    await repo.delete_comment(session, comment)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
