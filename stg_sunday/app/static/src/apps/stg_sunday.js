@@ -95,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_TABLE = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><polyline points="3 12 5 12 21 12"></polyline><polyline points="3 18 5 18 21 18"></polyline></svg>';
     const ICON_ITEM = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path></svg>';
     const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
-    const ICON_COLUMN_GRIP = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 3h4M5 9h4M5 15h4"/></svg>';
-    const ICON_RESIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4L1 7l2 3"/><path d="M7 4l2 3-2 3"/></svg>';
+    const ICON_COLUMN_GRIP = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v7"/><path d="M9 2v8"/><path d="M12 3v8"/><path d="M4 5v7"/><path d="M4 7l-2 2 2 2"/><path d="M4 12c0 3 8 3 8 0v-2"/></svg>';
+    const ICON_RESIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4L1 8l3 4"/><path d="M8 4l3 4-3 4"/><path d="M6 3v10"/></svg>';
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
         { id: 'status-progress', text: 'Em andamento', color: '#21d4fd' },
@@ -1085,28 +1085,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let dragHandle = null;
             if (column.column_type !== 'observation') {
-                dragHandle = document.createElement('button');
-                dragHandle.type = 'button';
-                dragHandle.className = 'sunday-column-header__grip';
-                dragHandle.title = 'Arrastar coluna';
-                dragHandle.dataset.columnId = column.id;
-                dragHandle.setAttribute('aria-label', column.name ? `Reordenar coluna ${column.name}` : 'Reordenar coluna');
-                dragHandle.tabIndex = -1;
-                dragHandle.innerHTML = ICON_COLUMN_GRIP;
                 headerWrapper.classList.add('is-reorderable');
+                dragHandle = headerWrapper; // usar toda a área do header como handle
             }
 
             headerWrapper.appendChild(titleBtn);
-            if (dragHandle) {
-                headerWrapper.appendChild(dragHandle);
-            }
+            // Não adicionar botão de handle; a área inteira do header é o handle
             headerWrapper.appendChild(headerActions);
             span.appendChild(headerWrapper);
 
-            const resizer = document.createElement('span');
+            const resizer = document.createElement('button');
+            resizer.type = 'button';
             resizer.className = 'sunday-column-resizer';
             resizer.dataset.columnId = column.id;
-            resizer.setAttribute('aria-hidden', 'true');
+            resizer.setAttribute('aria-label', 'Ajustar largura da coluna');
+            resizer.tabIndex = 0;
             resizer.innerHTML = ICON_RESIZE;
             span.appendChild(resizer);
 
@@ -1472,7 +1465,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Preferir DnD via Pointer API para suavidade e controle total
         headerWrapper.draggable = false;
-        grip.addEventListener('pointerdown', (event) => beginColumnPointerDrag(event, headerWrapper, grip, column.id));
+        grip.addEventListener('pointerdown', (event) => {
+            // Não iniciar drag se o alvo for um elemento interativo (menu, título, botões etc.)
+            const interactive = event.target.closest('.sunday-column-header__actions, .sunday-column-header__title, button, a, input, textarea, [data-action]');
+            if (interactive) return;
+            beginColumnPointerDrag(event, headerWrapper, grip, column.id);
+        });
         grip.addEventListener('pointerup', () => finishColumnPointerPrep(headerWrapper, grip));
         grip.addEventListener('pointercancel', () => finishColumnPointerPrep(headerWrapper, grip));
     }
@@ -1484,6 +1482,10 @@ document.addEventListener('DOMContentLoaded', () => {
         headerWrapper.classList.remove('is-drag-ready');
         headerWrapper.removeAttribute('data-drag-ready');
         grip?.classList.remove('is-grabbing');
+        // Remover destaque da coluna caso tenha sido aplicado antecipadamente
+        if (headerWrapper?.dataset?.columnId) {
+            setColumnHighlight(Number(headerWrapper.dataset.columnId), false);
+        }
         if (grip && typeof grip.releasePointerCapture === 'function') {
             const pointerId = columnDragState?.pointerId;
             if (pointerId) {
@@ -1510,6 +1512,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         document.body.classList.add('sunday-column-dragging');
         grip.classList.add('is-grabbing');
+        headerWrapper.classList.add('is-dragging');
+        setColumnHighlight(columnId, true);
         if (typeof grip.setPointerCapture === 'function') {
             try { grip.setPointerCapture(event.pointerId); } catch {}
         }
@@ -1570,6 +1574,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.removeEventListener('pointermove', onColumnPointerDragMove);
         document.body.classList.remove('sunday-column-dragging');
         state?.grip?.classList.remove('is-grabbing');
+        state?.sourceWrapper?.classList.remove('is-dragging');
+        if (state?.columnId != null) {
+            setColumnHighlight(state.columnId, false);
+        }
         try { state?.grip?.releasePointerCapture?.(state.pointerId); } catch {}
         if (columnDragAvatar) { columnDragAvatar.remove(); columnDragAvatar = null; }
         const target = state?.dropTarget;
@@ -1601,8 +1609,20 @@ document.addEventListener('DOMContentLoaded', () => {
         columnDragState.sourceWrapper?.removeAttribute('data-drag-ready');
         columnDragState.grip?.classList.remove('is-grabbing');
         document.body.classList.remove('sunday-column-dragging');
+        if (columnDragState.columnId != null) {
+            setColumnHighlight(columnDragState.columnId, false);
+        }
         clearDragIndicators();
         columnDragState = null;
+    }
+
+    function setColumnHighlight(columnId, enable) {
+        const selector = `.sunday-table__head-cell[data-column-id="${columnId}"], .sunday-cell[data-column-id="${columnId}"]`;
+        const nodes = boardListEl.querySelectorAll(selector);
+        nodes.forEach((el) => {
+            if (enable) el.classList.add('sunday-col-highlight');
+            else el.classList.remove('sunday-col-highlight');
+        });
     }
 
     async function persistColumnReorder(sourceId, targetId, isAfter) {
