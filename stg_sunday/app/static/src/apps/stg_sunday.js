@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_TABLE = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><polyline points="3 12 5 12 21 12"></polyline><polyline points="3 18 5 18 21 18"></polyline></svg>';
     const ICON_ITEM = '<svg class="sunday-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path></svg>';
     const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
-    const ICON_COLUMN_GRIP = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v7"/><path d="M9 2v8"/><path d="M12 3v8"/><path d="M4 5v7"/><path d="M4 7l-2 2 2 2"/><path d="M4 12c0 3 8 3 8 0v-2"/></svg>';
+    const ICON_ROW_HANDLE = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v7"/><path d="M9 2v8"/><path d="M12 3v8"/><path d="M4 5v7"/><path d="M4 7l-2 2 2 2"/><path d="M4 12c0 3 8 3 8 0v-2"/></svg>';
     const ICON_RESIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4L1 8l3 4"/><path d="M8 4l3 4-3 4"/><path d="M6 3v10"/></svg>';
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
@@ -144,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeColumnResize = null;
     let columnDragState = null;
     let columnDragAvatar = null;
+    let rowDragState = null;
+    let rowDragAvatar = null;
     let currentCommentMenu = null;
     let currentCommentMenuHandler = null;
 
@@ -1148,14 +1150,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const checkboxCell = document.createElement('div');
                 checkboxCell.className = 'sunday-cell sunday-cell--checkbox';
+                const rowHandle = document.createElement('button');
+                rowHandle.type = 'button';
+                rowHandle.className = 'sunday-row-handle';
+                rowHandle.tabIndex = -1;
+                rowHandle.setAttribute('aria-label', item.title ? `Reordenar linha ${item.title}` : 'Reordenar linha');
+                rowHandle.innerHTML = '';
+                rowHandle.addEventListener('click', (event) => event.preventDefault());
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.setAttribute('data-select-row', 'true');
                 checkbox.dataset.groupId = group.id;
                 checkbox.dataset.itemId = item.id;
                 checkbox.setAttribute('aria-label', 'Selecionar linha');
-                checkboxCell.appendChild(checkbox);
+                checkboxCell.append(rowHandle, checkbox);
                 row.appendChild(checkboxCell);
+                setupRowDrag(rowHandle, row, item.id, group.id);
 
                 const firstCell = document.createElement('div');
                 firstCell.className = 'sunday-cell sunday-cell--item is-clickable';
@@ -1229,14 +1239,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             cell.title = labelOption.text;
                             cell.dataset.labelColor = colorHex;
                             cell.style.background = colorHex;
-                            cell.style.color = getReadableTextColor(colorHex);
                         } else if (cellData.raw_value) {
                             cell.textContent = cellData.raw_value;
                             cell.title = cellData.raw_value;
                             const fallbackColor = cellData.color_hex || '#4361EE';
                             cell.dataset.labelColor = fallbackColor;
                             cell.style.background = fallbackColor;
-                            cell.style.color = getReadableTextColor(fallbackColor);
                             cell.classList.add('has-status-label');
                         } else {
                             cell.classList.add('is-empty');
@@ -1654,22 +1662,161 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function getReadableTextColor(hexColor) {
-        if (!hexColor || typeof hexColor !== 'string') {
-            return '#0f172a';
+    function setupRowDrag(handle, rowEl, itemId, groupId) {
+        if (!handle || !rowEl) {
+            return;
         }
-        const clean = hexColor.replace('#', '');
-        if (clean.length !== 6) {
-            return '#0f172a';
+        handle.addEventListener('pointerdown', (event) => beginRowPointerDrag(event, rowEl, handle, itemId, groupId));
+        handle.addEventListener('click', (event) => event.preventDefault());
+    }
+
+    function beginRowPointerDrag(event, rowEl, handle, itemId, groupId) {
+        if (rowDragState?.dragging) {
+            return;
         }
-        const r = parseInt(clean.slice(0, 2), 16);
-        const g = parseInt(clean.slice(2, 4), 16);
-        const b = parseInt(clean.slice(4, 6), 16);
-        if ([r, g, b].some(Number.isNaN)) {
-            return '#0f172a';
+        event.preventDefault();
+        event.stopPropagation();
+        rowDragState = {
+            itemId,
+            groupId,
+            sourceRow: rowEl,
+            handle,
+            pointerId: event.pointerId,
+            dragging: true,
+            dropTarget: null,
+        };
+        document.body.classList.add('sunday-row-dragging');
+        handle.classList.add('is-grabbing');
+        setRowHighlight(rowEl, true);
+        if (typeof handle.setPointerCapture === 'function') {
+            try { handle.setPointerCapture(event.pointerId); } catch (_) {}
         }
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.6 ? '#0f172a' : '#ffffff';
+        const title = rowEl.querySelector('.sunday-cell--item')?.textContent?.trim() || 'Linha';
+        rowDragAvatar = document.createElement('div');
+        rowDragAvatar.className = 'sunday-row-drag-avatar';
+        rowDragAvatar.textContent = title;
+        document.body.appendChild(rowDragAvatar);
+        moveRowDragAvatar(event.clientX, event.clientY);
+        window.addEventListener('pointermove', onRowPointerDragMove);
+        window.addEventListener('pointerup', onRowPointerDragEnd, { once: true });
+        window.addEventListener('pointercancel', onRowPointerDragEnd, { once: true });
+    }
+
+    function moveRowDragAvatar(x, y) {
+        if (!rowDragAvatar) {
+            return;
+        }
+        rowDragAvatar.style.transform = `translate(${Math.round(x + 12)}px, ${Math.round(y + 12)}px)`;
+    }
+
+    function findRowTargetAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        const row = el?.closest?.('.sunday-table__row');
+        if (!row) {
+            return null;
+        }
+        const groupId = Number(row.dataset.groupId);
+        const itemId = Number(row.dataset.itemId);
+        if (!itemId || !rowDragState || groupId !== rowDragState.groupId || itemId === rowDragState.itemId) {
+            return null;
+        }
+        const rect = row.getBoundingClientRect();
+        const isAfter = y - rect.top > rect.height / 2;
+        return { row, itemId, isAfter };
+    }
+
+    function onRowPointerDragMove(event) {
+        if (!rowDragState?.dragging) {
+            return;
+        }
+        moveRowDragAvatar(event.clientX, event.clientY);
+        const target = findRowTargetAt(event.clientX, event.clientY);
+        if (!target) {
+            if (rowDragState.dropTarget) {
+                rowDragState.dropTarget.row.classList.remove('is-row-drop-before', 'is-row-drop-after');
+                rowDragState.dropTarget = null;
+            }
+            return;
+        }
+        if (rowDragState.dropTarget && rowDragState.dropTarget.row !== target.row) {
+            rowDragState.dropTarget.row.classList.remove('is-row-drop-before', 'is-row-drop-after');
+        }
+        target.row.classList.toggle('is-row-drop-after', target.isAfter);
+        target.row.classList.toggle('is-row-drop-before', !target.isAfter);
+        rowDragState.dropTarget = target;
+    }
+
+    async function onRowPointerDragEnd() {
+        const state = rowDragState;
+        rowDragState = null;
+        window.removeEventListener('pointermove', onRowPointerDragMove);
+        document.body.classList.remove('sunday-row-dragging');
+        if (state?.handle) {
+            state.handle.classList.remove('is-grabbing');
+            if (typeof state.handle.releasePointerCapture === 'function' && state.pointerId != null) {
+                try { state.handle.releasePointerCapture(state.pointerId); } catch (_) {}
+            }
+        }
+        setRowHighlight(state?.sourceRow, false);
+        if (rowDragAvatar) {
+            rowDragAvatar.remove();
+            rowDragAvatar = null;
+        }
+        const target = state?.dropTarget;
+        clearRowDropIndicators();
+        if (!state || !target) {
+            return;
+        }
+        await persistRowReorder(state.itemId, state.groupId, target.itemId, target.isAfter);
+    }
+
+    function clearRowDropIndicators() {
+        boardListEl.querySelectorAll('.sunday-table__row.is-row-drop-before, .sunday-table__row.is-row-drop-after')
+            .forEach((row) => row.classList.remove('is-row-drop-before', 'is-row-drop-after'));
+    }
+
+    function setRowHighlight(rowEl, enable) {
+        if (!rowEl) {
+            return;
+        }
+        rowEl.classList.toggle('sunday-row-highlight', enable);
+        rowEl.querySelectorAll('.sunday-cell').forEach((cell) => {
+            cell.classList.toggle('sunday-row-highlight', enable);
+        });
+    }
+
+    async function persistRowReorder(itemId, groupId, targetItemId, isAfter) {
+        if (!currentBoard) {
+            return;
+        }
+        const group = currentBoard.groups?.find((g) => g.id === groupId);
+        if (!group) {
+            return;
+        }
+        const orderedIds = [...(group.items || [])]
+            .sort((a, b) => a.position - b.position)
+            .map((item) => item.id);
+        const sourceIndex = orderedIds.indexOf(itemId);
+        const targetIndex = orderedIds.indexOf(targetItemId);
+        if (sourceIndex === -1 || targetIndex === -1) {
+            return;
+        }
+        orderedIds.splice(sourceIndex, 1);
+        const adjustedIndex = orderedIds.indexOf(targetItemId);
+        const insertIndex = Math.max(0, Math.min(orderedIds.length, adjustedIndex + (isAfter ? 1 : 0)));
+        orderedIds.splice(insertIndex, 0, itemId);
+        const desiredPosition = orderedIds.indexOf(itemId) + 1;
+        try {
+            const board = await fetchJSON(`${boardsEndpoint.replace('/boards', '/items')}/${itemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ position: desiredPosition, group_id: groupId }),
+            });
+            setCurrentBoard(board);
+        } catch (error) {
+            console.error(error);
+            showToast('Não foi possível mover a linha.');
+        }
     }
 
     function ensureSelectionSet(groupId) {
@@ -1747,11 +1894,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function parseLocalDate(value) {
+        if (typeof value !== 'string') {
+            return null;
+        }
+        const match = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
+        if (!match) {
+            return null;
+        }
+        const [, yearStr, monthStr, dayStr] = match;
+        const year = Number(yearStr);
+        const month = Number(monthStr);
+        const day = Number(dayStr);
+        if ([year, month, day].some(Number.isNaN)) {
+            return null;
+        }
+        const date = new Date(year, month - 1, day);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function formatCellValue(type, rawValue) {
         if (!rawValue) {
             return '';
         }
         if (type === 'date') {
+            const parsed = parseLocalDate(rawValue);
+            if (parsed) {
+                return parsed.toLocaleDateString('pt-BR');
+            }
             const date = new Date(rawValue);
             if (!Number.isNaN(date.getTime())) {
                 return date.toLocaleDateString('pt-BR');
@@ -2060,6 +2230,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeInlineEditor() {
+        if (currentInlineEditor) {
+            const fpInput = currentInlineEditor.querySelector('input');
+            if (fpInput?.__fpInstance) {
+                try { fpInput.__fpInstance.destroy(); } catch (_) {}
+            } else if (fpInput?._flatpickr) {
+                try { fpInput._flatpickr.destroy(); } catch (_) {}
+            }
+        }
         if (currentInlineEditorHandler) {
             document.removeEventListener('click', currentInlineEditorHandler, true);
             currentInlineEditorHandler = null;
@@ -2428,9 +2606,13 @@ document.addEventListener('DOMContentLoaded', () => {
         currentInlineEditorCell = cellEl;
         currentInlineEditorPreviousNodes = previousNodes;
         currentInlineEditorHandler = (event) => {
-            if (!cellEl.contains(event.target)) {
-                closeInlineEditor();
+            if (cellEl.contains(event.target)) {
+                return;
             }
+            if (event.target.closest && event.target.closest('.flatpickr-calendar')) {
+                return;
+            }
+            closeInlineEditor();
         };
         setTimeout(() => document.addEventListener('click', currentInlineEditorHandler, true), 0);
 
@@ -2786,26 +2968,123 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openDateEditor(cellEl, cellData) {
-        const input = openInlineEditor(cellEl, cellData.raw_value || '', 'date');
-        let handled = false;
-        const commit = async () => {
-            if (handled) {
+        const initialValue = cellData.raw_value || '';
+        const input = openInlineEditor(cellEl, initialValue, 'text');
+        input.readOnly = true;
+        input.classList.add('sunday-inline-date-input');
+        input.setAttribute('placeholder', 'Selecione uma data');
+        let committed = false;
+
+        const commit = async (value) => {
+            if (committed) {
                 return;
             }
-            handled = true;
-            await updateCellValue(cellData.id, input.value || null);
-            const displayValue = formatCellValue('date', input.value || null);
+            committed = true;
+            await updateCellValue(cellData.id, value || null);
+            const displayValue = formatCellValue('date', value || null);
             currentInlineEditorPreviousNodes = displayValue ? [document.createTextNode(displayValue)] : [];
             closeInlineEditor();
         };
-        input.addEventListener('change', commit);
-        input.addEventListener('blur', commit, { once: true });
+
+        const cancel = () => {
+            if (committed) {
+                return;
+            }
+            committed = true;
+            closeInlineEditor();
+        };
+
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
-                closeInlineEditor();
+                cancel();
             }
         });
+
+        if (window.flatpickr) {
+            const locale = window.flatpickr.l10ns?.pt ?? window.flatpickr.l10ns?.default;
+            if (locale && window.flatpickr.localize) {
+                window.flatpickr.localize(locale);
+            }
+            let pendingValue = initialValue;
+            const maskOutOfMonthDays = (instance) => {
+                if (!instance?.calendarContainer) {
+                    return;
+                }
+                const days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                days.forEach((dayEl) => {
+                    if (dayEl.classList.contains('prevMonthDay') || dayEl.classList.contains('nextMonthDay')) {
+                        dayEl.style.visibility = 'hidden';
+                        dayEl.style.pointerEvents = 'none';
+                    } else {
+                        dayEl.style.visibility = '';
+                        dayEl.style.pointerEvents = '';
+                    }
+                });
+            };
+            const fp = window.flatpickr(input, {
+                defaultDate: initialValue || null,
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                allowInput: false,
+                disableMobile: true,
+                clickOpens: true,
+                appendTo: document.body,
+                nextArrow: '&rsaquo;',
+                prevArrow: '&lsaquo;',
+                onReady(selectedDates, dateStr, instance) {
+                    input.__fpInstance = instance;
+                    instance.calendarContainer.classList.add('sunday-datepicker');
+                    const footer = document.createElement('div');
+                    footer.className = 'sunday-datepicker__footer';
+                    const todayBtn = document.createElement('button');
+                    todayBtn.type = 'button';
+                    todayBtn.textContent = 'Hoje';
+                    todayBtn.addEventListener('click', () => {
+                        instance.setDate(new Date(), true);
+                        instance.close();
+                    });
+                    const clearBtn = document.createElement('button');
+                    clearBtn.type = 'button';
+                    clearBtn.textContent = 'Limpar';
+                    clearBtn.addEventListener('click', () => {
+                        pendingValue = '';
+                        instance.clear();
+                        instance.close();
+                        commit(null);
+                    });
+                    footer.append(todayBtn, clearBtn);
+                    instance.calendarContainer.appendChild(footer);
+                    if (instance.altInput) {
+                        instance.altInput.setAttribute('readonly', 'readonly');
+                        instance.altInput.classList.add('sunday-inline-date-display');
+                    }
+                    maskOutOfMonthDays(instance);
+                    instance.open();
+                },
+                onValueUpdate(selectedDates, dateStr, instance) {
+                    pendingValue = dateStr;
+                    maskOutOfMonthDays(instance);
+                },
+                onMonthChange(selectedDates, dateStr, instance) {
+                    maskOutOfMonthDays(instance);
+                },
+                onYearChange(selectedDates, dateStr, instance) {
+                    maskOutOfMonthDays(instance);
+                },
+                onClose() {
+                    commit(pendingValue || null);
+                },
+            });
+            input.__fpInstance = fp;
+        } else {
+            input.readOnly = false;
+            input.type = 'date';
+            input.value = initialValue;
+            input.addEventListener('change', () => commit(input.value || null));
+            input.addEventListener('blur', () => commit(input.value || null), { once: true });
+        }
     }
 
     function startInlineBoardRename() {
