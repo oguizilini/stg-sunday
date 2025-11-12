@@ -593,7 +593,8 @@ body.stg-sunday-page:not(.dark) .main-header::after {
     flex-direction: column;
     gap: var(--space-8);
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 
 .content-card::before {
@@ -838,52 +839,6 @@ body.dark .sunday-cell--ghost button:hover {
     border: none;
 }
 
-.sunday-scrollbar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: var(--space-6);
-    width: 100vw;
-    max-width: none;
-    height: 18px;
-    margin-top: 0;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--color-border-soft);
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: var(--shadow-card);
-    overflow-x: auto;
-    overflow-y: hidden;
-    display: none;
-    z-index: 30;
-    backdrop-filter: blur(14px);
-}
-
-.sunday-scrollbar.is-active {
-    display: block;
-}
-
-.sunday-scrollbar__inner {
-    height: 1px;
-}
-
-.sunday-scrollbar::-webkit-scrollbar {
-    height: 8px;
-}
-
-.sunday-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(28, 39, 65, 0.3);
-    border-radius: var(--radius-pill);
-}
-
-body.dark .sunday-scrollbar {
-    background: rgba(17, 27, 46, 0.92);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: var(--shadow-floating);
-}
-
-body.dark .sunday-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.32);
-}
 
 body.dark .sunday-group::before {
     background: linear-gradient(135deg, rgba(26, 38, 63, 0.92), rgba(17, 27, 46, 0.78));
@@ -1049,6 +1004,17 @@ body.dark .sunday-group__delete-selected:hover {
     border-bottom: 1px solid rgba(214, 222, 238, 0.65);
     min-width: 100%;
     width: max-content;
+    position: relative;
+    z-index: 2;
+}
+
+.sunday-table__head.is-sticky {
+    position: sticky;
+    top: var(--sunday-sticky-head-offset, 72px);
+    left: 0;
+    z-index: 35;
+    background: var(--sunday-header-bg, var(--color-table-head));
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
 }
 
 .sunday-table__head span {
@@ -1756,7 +1722,6 @@ body.dark .sunday-row-highlight {
 
 body.dark .sunday-cell--status.has-status-label {
     color: #ffffff !important;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 .sunday-cell--status.has-status-label:hover {
@@ -2976,3 +2941,25 @@ body.dark .sunday-column-resizer {
     box-shadow: var(--glow-primary);
     border-radius: var(--radius-sm);
 }
+/* Barra horizontal unificada simples (fixa no viewport) */
+.sunday-scrollbar {
+    position: fixed !important;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 16px;
+    background: #f0f0f0;
+    border-top: 1px solid #ccc;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: none;
+    z-index: 9999;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-x;
+}
+.sunday-scrollbar.is-active {
+    display: block;
+}
+.sunday-scrollbar__inner { height: 1px; }

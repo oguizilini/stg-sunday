@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sharedScrollbarInner = null;
     let sharedActiveTable = null;
     let sharedActiveViewport = null;
+    const registeredTables = new Set();
     let sharedSyncingFromTable = false;
     let sharedSyncingFromBar = false;
     const selectedRows = new Map();
@@ -527,8 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sharedScrollbarInner.style.width = '0px';
         sharedScrollbar.appendChild(sharedScrollbarInner);
         sharedScrollbar.addEventListener('scroll', handleSharedScrollbarScroll, { passive: true });
-        const card = wrapper.querySelector('.content-card');
-        (card || wrapper).appendChild(sharedScrollbar);
+        const host = document.body || wrapper;
+        host.appendChild(sharedScrollbar);
     }
 
     function cleanupTableScrollers() {
@@ -538,6 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sharedActiveViewport = null;
         sharedSyncingFromTable = false;
         sharedSyncingFromBar = false;
+        registeredTables.clear();
         if (sharedScrollbar) {
             sharedScrollbar.classList.remove('is-active');
             sharedScrollbar.scrollLeft = 0;
@@ -575,12 +577,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function syncAllTablesScroll(left, except = null) {
+        registeredTables.forEach((table) => {
+            if (table === except) {
+                return;
+            }
+            if (Math.abs(table.scrollLeft - left) > 0.5) {
+                table.scrollLeft = left;
+            }
+        });
+    }
+
     function syncSharedFromTable() {
         if (!sharedScrollbar || !sharedActiveTable || sharedSyncingFromBar) {
             return;
         }
         sharedSyncingFromTable = true;
         sharedScrollbar.scrollLeft = sharedActiveTable.scrollLeft;
+        syncAllTablesScroll(sharedScrollbar.scrollLeft, sharedActiveTable);
         requestAnimationFrame(() => {
             sharedSyncingFromTable = false;
         });
@@ -591,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         sharedSyncingFromBar = true;
-        sharedActiveTable.scrollLeft = sharedScrollbar.scrollLeft;
+        syncAllTablesScroll(sharedScrollbar.scrollLeft);
         requestAnimationFrame(() => {
             sharedSyncingFromBar = false;
         });
@@ -599,6 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function registerSharedScrollbar(tableEl, viewportEl) {
         ensureSharedScrollbar();
+        registeredTables.add(tableEl);
 
         const updateIfActive = () => {
             if (sharedActiveTable === tableEl) {
@@ -626,10 +641,13 @@ document.addEventListener('DOMContentLoaded', () => {
         tableEl.addEventListener('pointerenter', onPointerEnter);
         tableEl.addEventListener('focusin', onFocusIn);
 
-        tableScrollCleanups.push(() => resizeObserver.disconnect());
-        tableScrollCleanups.push(() => tableEl.removeEventListener('scroll', onTableScroll));
-        tableScrollCleanups.push(() => tableEl.removeEventListener('pointerenter', onPointerEnter));
-        tableScrollCleanups.push(() => tableEl.removeEventListener('focusin', onFocusIn));
+        tableScrollCleanups.push(() => {
+            resizeObserver.disconnect();
+            tableEl.removeEventListener('scroll', onTableScroll);
+            tableEl.removeEventListener('pointerenter', onPointerEnter);
+            tableEl.removeEventListener('focusin', onFocusIn);
+            registeredTables.delete(tableEl);
+        });
 
         requestAnimationFrame(() => {
             const style = window.getComputedStyle(tableEl);
