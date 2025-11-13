@@ -97,6 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_MORE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>';
     const ICON_ROW_HANDLE = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v7"/><path d="M9 2v8"/><path d="M12 3v8"/><path d="M4 5v7"/><path d="M4 7l-2 2 2 2"/><path d="M4 12c0 3 8 3 8 0v-2"/></svg>';
     const ICON_RESIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4L1 8l3 4"/><path d="M8 4l3 4-3 4"/><path d="M6 3v10"/></svg>';
+    const ICON_SORT = '<svg class="sunday-sort-toggle__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline class="arrow-up" points="9 7 12 4 15 7"></polyline><line x1="12" y1="4" x2="12" y2="20"></line><polyline class="arrow-down" points="9 17 12 20 15 17"></polyline></svg>';
+    const ICON_EYE = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+    const ICON_EYE_OFF = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.3 18.3 0 0 1-2.16 3.19"></path><path d="M1 1l22 22"></path><path d="M9.53 9.53a3.5 3.5 0 0 0 4.95 4.95"></path></svg>';
+    const HIDDEN_COLUMNS_STORAGE_KEY = 'stgSunday:hiddenColumns';
+    const ITEM_COLUMN_STORAGE_KEY = 'stgSunday:itemColumnWidth';
+    const ITEM_COLUMN_DEFAULT_WIDTH = 240;
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
         { id: 'status-progress', text: 'Em andamento', color: '#21d4fd' },
@@ -135,6 +141,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let sharedSyncingFromBar = false;
     const selectedRows = new Map();
     const columnWidthState = new Map();
+    const itemColumnWidthState = loadItemColumnWidthState();
+    const hiddenColumnsState = loadHiddenColumnsState();
+    const sortStateByBoard = new Map();
+    const stickyOffsetAnchors = ['.header-container', '.main-header', '.sunday-toolbar', '[data-sticky-offset]'];
+    let stickyHeadOffset = 0;
     let currentOrderedColumns = [];
     let currentGridTemplate = '';
     let observationColumns = [];
@@ -149,6 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let rowDragAvatar = null;
     let currentCommentMenu = null;
     let currentCommentMenuHandler = null;
+    let currentHiddenColumnsMenu = null;
+    let hiddenColumnsMenuHandler = null;
+    let currentSortState = null;
 
     async function fetchJSON(url, options) {
         const response = await fetch(url, options);
@@ -171,6 +185,447 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.classList.add('is-visible');
         setTimeout(() => toast.classList.remove('is-visible'), 2600);
     }
+
+    function getLocalStorageSafe() {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                return window.localStorage;
+            }
+        } catch (error) {
+            console.warn('LocalStorage indisponível:', error);
+        }
+        return null;
+    }
+
+    function loadHiddenColumnsState() {
+        const storage = getLocalStorageSafe();
+        const map = new Map();
+        if (!storage) {
+            return map;
+        }
+        try {
+            const raw = storage.getItem(HIDDEN_COLUMNS_STORAGE_KEY);
+            if (!raw) {
+                return map;
+            }
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return map;
+            }
+            Object.entries(parsed).forEach(([boardId, columnIds]) => {
+                const numericBoardId = Number(boardId);
+                if (!Number.isFinite(numericBoardId) || !Array.isArray(columnIds)) {
+                    return;
+                }
+                const set = new Set();
+                columnIds.forEach((value) => {
+                    const numericValue = Number(value);
+                    if (Number.isFinite(numericValue)) {
+                        set.add(numericValue);
+                    }
+                });
+                if (set.size) {
+                    map.set(numericBoardId, set);
+                }
+            });
+        } catch (error) {
+            console.error('Não foi possível carregar as colunas ocultas.', error);
+        }
+        return map;
+    }
+
+    function persistHiddenColumnsState() {
+        const storage = getLocalStorageSafe();
+        if (!storage) {
+            return;
+        }
+        try {
+            const payload = {};
+            hiddenColumnsState.forEach((set, boardId) => {
+                if (set.size) {
+                    payload[boardId] = Array.from(set);
+                }
+            });
+            storage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Não foi possível salvar as colunas ocultas.', error);
+        }
+    }
+
+    function getHiddenColumnsSet(boardId) {
+        if (!Number.isFinite(boardId)) {
+            return null;
+        }
+        if (!hiddenColumnsState.has(boardId)) {
+            hiddenColumnsState.set(boardId, new Set());
+        }
+        return hiddenColumnsState.get(boardId);
+    }
+
+    function hasHiddenColumns(boardId = currentBoard?.id) {
+        if (!Number.isFinite(boardId)) {
+            return false;
+        }
+        const set = hiddenColumnsState.get(boardId);
+        return Boolean(set?.size);
+    }
+
+    function isColumnHidden(boardId, columnId) {
+        if (!Number.isFinite(boardId) || !Number.isFinite(columnId)) {
+            return false;
+        }
+        const set = hiddenColumnsState.get(boardId);
+        return Boolean(set?.has(columnId));
+    }
+
+    function cleanupHiddenColumns(board) {
+        const boardId = board?.id;
+        if (!Number.isFinite(boardId)) {
+            return;
+        }
+        const hiddenSet = hiddenColumnsState.get(boardId);
+        if (!hiddenSet?.size) {
+            return;
+        }
+        const validIds = new Set((board.columns || []).map((column) => column.id));
+        let changed = false;
+        Array.from(hiddenSet).forEach((columnId) => {
+            if (!validIds.has(columnId)) {
+                hiddenSet.delete(columnId);
+                changed = true;
+            }
+        });
+        if (!hiddenSet.size) {
+            hiddenColumnsState.delete(boardId);
+        }
+        if (changed) {
+            persistHiddenColumnsState();
+        }
+    }
+
+    function setColumnHidden(columnId, hidden) {
+        if (!currentBoard?.id || !Number.isFinite(columnId)) {
+            return false;
+        }
+        const hiddenSet = getHiddenColumnsSet(currentBoard.id);
+        if (!hiddenSet) {
+            return false;
+        }
+        let changed = false;
+        if (hidden) {
+            if (!hiddenSet.has(columnId)) {
+                hiddenSet.add(columnId);
+                changed = true;
+            }
+        } else if (hiddenSet.has(columnId)) {
+            hiddenSet.delete(columnId);
+            changed = true;
+        }
+        if (!hiddenSet.size) {
+            hiddenColumnsState.delete(currentBoard.id);
+        }
+        if (changed) {
+            const sortColumnKey = currentSortState?.columnKey;
+            if (hidden && sortColumnKey === String(columnId)) {
+                updateSortState(null, { rerender: false, silent: true });
+            }
+            persistHiddenColumnsState();
+            renderBoard(currentBoard);
+        }
+        return changed;
+    }
+
+    function restoreAllHiddenColumns() {
+        if (!currentBoard?.id) {
+            return false;
+        }
+        const hiddenSet = hiddenColumnsState.get(currentBoard.id);
+        if (!hiddenSet?.size) {
+            return false;
+        }
+        hiddenColumnsState.delete(currentBoard.id);
+        persistHiddenColumnsState();
+        renderBoard(currentBoard);
+        syncHiddenColumnButtons();
+        return true;
+    }
+
+    function loadItemColumnWidthState() {
+        const storage = getLocalStorageSafe();
+        const map = new Map();
+        if (!storage) {
+            return map;
+        }
+        try {
+            const raw = storage.getItem(ITEM_COLUMN_STORAGE_KEY);
+            if (!raw) {
+                return map;
+            }
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return map;
+            }
+            Object.entries(parsed).forEach(([boardId, widthValue]) => {
+                const numericBoardId = Number(boardId);
+                const numericWidth = Number(widthValue);
+                if (!Number.isFinite(numericBoardId) || !Number.isFinite(numericWidth)) {
+                    return;
+                }
+                map.set(numericBoardId, clampColumnWidth(numericWidth));
+            });
+        } catch (error) {
+            console.error('Não foi possível carregar a largura da coluna Item.', error);
+        }
+        return map;
+    }
+
+    function persistItemColumnWidthState() {
+        const storage = getLocalStorageSafe();
+        if (!storage) {
+            return;
+        }
+        try {
+            const payload = {};
+            itemColumnWidthState.forEach((width, boardId) => {
+                if (Number.isFinite(width)) {
+                    payload[boardId] = width;
+                }
+            });
+            storage.setItem(ITEM_COLUMN_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Não foi possível salvar a largura da coluna Item.', error);
+        }
+    }
+
+    function getItemColumnWidth(boardId = currentBoard?.id) {
+        if (!Number.isFinite(boardId)) {
+            return ITEM_COLUMN_DEFAULT_WIDTH;
+        }
+        const stored = itemColumnWidthState.get(boardId);
+        return Number.isFinite(stored) ? clampColumnWidth(stored) : ITEM_COLUMN_DEFAULT_WIDTH;
+    }
+
+    function syncItemColumnWidth(boardId = currentBoard?.id) {
+        const width = getItemColumnWidth(boardId);
+        columnWidthState.set('item', width);
+        applyItemColumnWidth(width);
+    }
+
+    function applyItemColumnWidth(width) {
+        const clamped = clampColumnWidth(width);
+        document.documentElement?.style?.setProperty('--sunday-item-col-width', `${clamped}px`);
+    }
+
+    function persistItemColumnWidth(boardId, width) {
+        if (!Number.isFinite(boardId)) {
+            applyItemColumnWidth(width);
+            return;
+        }
+        const clamped = clampColumnWidth(width);
+        itemColumnWidthState.set(boardId, clamped);
+        persistItemColumnWidthState();
+        applyItemColumnWidth(clamped);
+    }
+
+    function ensureSortStateValidity(board) {
+        if (!board?.id || !currentSortState) {
+            return;
+        }
+        if (currentSortState.columnKey === 'item') {
+            return;
+        }
+        const columnId = Number(currentSortState.columnKey);
+        if (!Number.isFinite(columnId)) {
+            currentSortState = null;
+            sortStateByBoard.delete(board.id);
+            return;
+        }
+        const exists = board.columns?.some((column) => column.id === columnId);
+        if (!exists) {
+            currentSortState = null;
+            sortStateByBoard.delete(board.id);
+        }
+    }
+
+    function updateSortState(newState, options = {}) {
+        const { rerender = true, silent = false } = options;
+        const boardId = currentBoard?.id;
+        currentSortState = newState;
+        if (boardId) {
+            if (newState) {
+                sortStateByBoard.set(boardId, newState);
+            } else {
+                sortStateByBoard.delete(boardId);
+            }
+        }
+        if (rerender && currentBoard) {
+            renderBoard(currentBoard);
+        } else if (!rerender && !silent) {
+            syncSortIndicators();
+        }
+    }
+
+    function cycleSort(columnKey) {
+        if (!currentBoard) {
+            showToast('Selecione um quadro primeiro.');
+            return;
+        }
+        if (!columnKey) {
+            return;
+        }
+        if (!currentSortState || currentSortState.columnKey !== columnKey) {
+            updateSortState({ columnKey, direction: 'asc' });
+            return;
+        }
+        if (currentSortState.direction === 'asc') {
+            updateSortState({ columnKey, direction: 'desc' });
+            return;
+        }
+        updateSortState(null);
+    }
+
+    function normalizeSortValue(value) {
+        if (value == null) {
+            return '';
+        }
+        return value.toString().trim().toLocaleLowerCase('pt-BR');
+    }
+
+    function getItemSortValue(item, columnKey) {
+        if (columnKey === 'item') {
+            return item.title || '';
+        }
+        const columnId = Number(columnKey);
+        if (!Number.isFinite(columnId)) {
+            return '';
+        }
+        const column = getColumnById(currentBoard, columnId);
+        if (!column) {
+            return '';
+        }
+        const cell = (item.cells || []).find((c) => c.column_id === column.id);
+        if (!cell) {
+            return '';
+        }
+        if (column.column_type === 'status' || column.column_type === 'label') {
+            const label = findLabel(column, cell.raw_value || '');
+            return label?.text || cell.raw_value || '';
+        }
+        return cell.raw_value || '';
+    }
+
+    function getGroupItemsWithSort(group) {
+        const items = (group.items || []).slice();
+        if (!currentSortState) {
+            return items.sort((a, b) => a.position - b.position);
+        }
+        const { columnKey, direction } = currentSortState;
+        const factor = direction === 'desc' ? -1 : 1;
+        return items.sort((a, b) => {
+            const valueA = normalizeSortValue(getItemSortValue(a, columnKey));
+            const valueB = normalizeSortValue(getItemSortValue(b, columnKey));
+            if (!valueA && !valueB) {
+                return a.position - b.position;
+            }
+            if (!valueA) {
+                return 1;
+            }
+            if (!valueB) {
+                return -1;
+            }
+            const comparison = valueA.localeCompare(valueB, 'pt', { sensitivity: 'base', numeric: true });
+            if (comparison === 0) {
+                return a.position - b.position;
+            }
+            return comparison * factor;
+        });
+    }
+
+    function updateStickyHeadOffset() {
+        let offset = 0;
+        const processed = new Set();
+        stickyOffsetAnchors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((anchor) => {
+                if (!anchor || !anchor.isConnected || processed.has(anchor)) {
+                    return;
+                }
+                processed.add(anchor);
+                const styles = window.getComputedStyle(anchor);
+                if (styles.display === 'none' || styles.visibility === 'hidden') {
+                    return;
+                }
+                const attrValue = Number(anchor.getAttribute('data-sticky-offset'));
+                if (Number.isFinite(attrValue)) {
+                    offset += attrValue;
+                    return;
+                }
+                const rect = anchor.getBoundingClientRect();
+                offset += rect.height || anchor.offsetHeight || 0;
+            });
+        });
+        stickyHeadOffset = Math.max(0, Math.round(offset));
+        document.documentElement.style.setProperty('--sunday-sticky-head-offset', `${stickyHeadOffset}px`);
+        return stickyHeadOffset;
+    }
+
+    function updateStickyHeaders() {
+        if (!wrapper) {
+            return;
+        }
+        const offset = stickyHeadOffset || updateStickyHeadOffset();
+        const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+        const tables = Array.from(wrapper.querySelectorAll('.sunday-table'));
+        const headsState = [];
+        tables.forEach((table) => {
+            const head = table.querySelector('.sunday-table__head');
+            if (!head) {
+                return;
+            }
+            const rect = table.getBoundingClientRect();
+            const tableTop = scrollTop + rect.top;
+            const tableBottom = tableTop + rect.height;
+            const headHeight = head.offsetHeight || 0;
+            const shouldStick = (scrollTop + offset) >= tableTop
+                && (scrollTop + offset) < (tableBottom - Math.max(headHeight, 32));
+            if (shouldStick) {
+                head.classList.add('is-sticky');
+                head.style.top = `${offset}px`;
+            } else {
+                head.classList.remove('is-sticky');
+                head.style.top = '';
+                head.style.transform = '';
+            }
+            headsState.push({ head, table, rect });
+        });
+
+        const activeEntry = headsState.find(({ head }) => head.classList.contains('is-sticky'));
+        if (!activeEntry) {
+            return;
+        }
+        const nextEntry = headsState
+            .filter(({ head }) => head !== activeEntry.head)
+            .map(({ head, table }) => ({ head, rect: table.getBoundingClientRect() }))
+            .filter(({ rect }) => rect.top > offset + 4)
+            .sort((a, b) => a.rect.top - b.rect.top)[0];
+        if (nextEntry) {
+            const overlap = (offset + (activeEntry.head.offsetHeight || 0)) - nextEntry.rect.top;
+            activeEntry.head.style.transform = overlap > 0 ? `translateY(-${overlap}px)` : '';
+        } else {
+            activeEntry.head.style.transform = '';
+        }
+    }
+
+    updateStickyHeadOffset();
+    updateStickyHeaders();
+    window.addEventListener('scroll', () => updateStickyHeaders(), { passive: true });
+    window.addEventListener('resize', () => {
+        updateStickyHeadOffset();
+        updateStickyHeaders();
+    });
+    window.addEventListener('load', () => {
+        updateStickyHeadOffset();
+        updateStickyHeaders();
+    });
 
     function escapeHTML(value = '') {
         const map = {
@@ -547,6 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sharedScrollbarInner) {
             sharedScrollbarInner.style.width = '0px';
         }
+        updateStickyHeaders();
     }
 
     function setActiveScrollTable(tableEl, viewportEl) {
@@ -672,6 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         closeBoardMenu();
         closeColumnMenu();
+        closeHiddenColumnsMenu();
         closeLabelPicker();
         closeInlineEditor();
 
@@ -683,7 +1140,19 @@ document.addEventListener('DOMContentLoaded', () => {
         observationColumns = [];
         reorderableColumns = [];
         if (board) {
+            currentSortState = sortStateByBoard.get(board.id) || null;
+            ensureSortStateValidity(board);
+        } else {
+            currentSortState = null;
+        }
+
+        if (board) {
+            syncItemColumnWidth(board.id);
+            cleanupHiddenColumns(board);
             updateBoardCache(board);
+        } else {
+            columnWidthState.delete('item');
+            applyItemColumnWidth(ITEM_COLUMN_DEFAULT_WIDTH);
         }
 
         renderBoardSidebar();
@@ -809,6 +1278,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="sunday-btn sunday-btn-primary" data-action="create-board">Criar quadro</button>
         `;
         boardListEl.appendChild(empty);
+
+        requestAnimationFrame(() => {
+            updateStickyHeadOffset();
+            updateStickyHeaders();
+        });
+
+        syncHiddenColumnButtons();
+        syncSortIndicators();
     }
 
     function renderBoard(board) {
@@ -849,6 +1326,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="sunday-btn sunday-btn-primary" data-action="create-group">Criar primeira tabela</button>
             `;
             boardListEl.appendChild(empty);
+            requestAnimationFrame(() => {
+                updateStickyHeadOffset();
+                updateStickyHeaders();
+            });
             return;
         }
 
@@ -874,6 +1355,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        requestAnimationFrame(() => {
+            updateStickyHeadOffset();
+            updateStickyHeaders();
+        });
+
         applyColumnLayout();
 
         if (recentlyAddedColumnId) {
@@ -888,6 +1374,43 @@ document.addEventListener('DOMContentLoaded', () => {
         recentlyAddedItemId = null;
         recentlyAddedGroupId = null;
         recentlyAddedColumnId = null;
+
+        syncHiddenColumnButtons();
+        syncSortIndicators();
+    }
+
+    function syncHiddenColumnButtons() {
+        if (!boardListEl) {
+            return;
+        }
+        const hasHidden = hasHiddenColumns();
+        boardListEl.querySelectorAll('[data-action="manage-hidden-columns"]').forEach((btn) => {
+            btn.hidden = !hasHidden;
+            btn.disabled = !hasHidden;
+        });
+    }
+
+    function syncSortIndicators() {
+        if (!boardListEl) {
+            return;
+        }
+        const buttons = boardListEl.querySelectorAll('[data-action="sort-column"]');
+        buttons.forEach((btn) => {
+            const key = btn.dataset.sortColumn;
+            const isActive = currentSortState?.columnKey === key;
+            const isDesc = isActive && currentSortState.direction === 'desc';
+            btn.classList.toggle('is-active', isActive);
+            btn.classList.toggle('is-desc', isDesc);
+            btn.classList.toggle('is-asc', isActive && !isDesc);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            const baseLabel = btn.getAttribute('aria-label') || 'Ordenar coluna';
+            if (isActive) {
+                const directionLabel = isDesc ? 'Z-A' : 'A-Z';
+                btn.title = `${baseLabel} (${directionLabel})`;
+            } else {
+                btn.title = baseLabel;
+            }
+        });
     }
 
     function clampColumnWidth(width) {
@@ -910,6 +1433,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         Array.from(columnWidthState.keys()).forEach((columnId) => {
+            if (columnId === 'item') {
+                return;
+            }
             if (!validIds.has(columnId)) {
                 columnWidthState.delete(columnId);
             }
@@ -917,6 +1443,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getColumnWidth(columnId) {
+        if (columnId === 'item') {
+            if (columnWidthState.has('item')) {
+                return columnWidthState.get('item');
+            }
+            const width = getItemColumnWidth();
+            columnWidthState.set('item', width);
+            return width;
+        }
         if (columnWidthState.has(columnId)) {
             return columnWidthState.get(columnId);
         }
@@ -948,9 +1482,11 @@ document.addEventListener('DOMContentLoaded', () => {
         observationColumns = ordered.filter((column) => column.column_type === 'observation');
         reorderableColumns = ordered.filter((column) => column.column_type !== 'observation');
         hydrateColumnWidthState(ordered);
-        currentOrderedColumns = ordered;
-        currentGridTemplate = buildGridTemplate(ordered);
-        return ordered;
+        const boardId = currentBoard?.id ?? null;
+        const visibleColumns = ordered.filter((column) => !isColumnHidden(boardId, column.id));
+        currentOrderedColumns = visibleColumns;
+        currentGridTemplate = buildGridTemplate(visibleColumns);
+        return visibleColumns;
     }
 
     function applyColumnLayout() {
@@ -967,6 +1503,19 @@ document.addEventListener('DOMContentLoaded', () => {
             row.style.gridTemplateColumns = currentGridTemplate;
         });
         updateSharedScrollbarMetrics();
+    }
+
+    function createSortButton(columnKey, label) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.action = 'sort-column';
+        button.dataset.sortColumn = columnKey;
+        button.className = 'sunday-sort-toggle';
+        const targetLabel = label || 'coluna';
+        button.setAttribute('aria-label', `Ordenar por ${targetLabel}`);
+        button.setAttribute('aria-pressed', currentSortState?.columnKey === columnKey ? 'true' : 'false');
+        button.innerHTML = ICON_SORT;
+        return button;
     }
 
     function buildGroupElement(board, group, orderedColumns) {
@@ -1029,6 +1578,17 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteSelectedBtn.disabled = true;
         actions.appendChild(deleteSelectedBtn);
 
+        const hiddenColumnsBtn = document.createElement('button');
+        hiddenColumnsBtn.type = 'button';
+        hiddenColumnsBtn.dataset.action = 'manage-hidden-columns';
+        hiddenColumnsBtn.dataset.groupId = group.id;
+        hiddenColumnsBtn.title = 'Mostrar colunas ocultas';
+        hiddenColumnsBtn.className = 'sunday-group__hidden-columns';
+        hiddenColumnsBtn.innerHTML = ICON_EYE;
+        hiddenColumnsBtn.hidden = !hasHiddenColumns();
+        hiddenColumnsBtn.disabled = !hasHiddenColumns();
+        actions.appendChild(hiddenColumnsBtn);
+
         const groupMenuBtn = document.createElement('button');
         groupMenuBtn.type = 'button';
         groupMenuBtn.dataset.action = 'group-menu';
@@ -1057,8 +1617,27 @@ document.addEventListener('DOMContentLoaded', () => {
         head.appendChild(checkboxHeader);
 
         const titleHeader = document.createElement('span');
-        titleHeader.textContent = 'Item';
+        titleHeader.className = 'sunday-table__head-cell sunday-table__head-cell--item';
+        const itemHeaderWrapper = document.createElement('div');
+        itemHeaderWrapper.className = 'sunday-column-header sunday-column-header--item';
+        const itemTitle = document.createElement('span');
+        itemTitle.className = 'sunday-column-title';
+        itemTitle.textContent = 'Item';
+        const itemActions = document.createElement('div');
+        itemActions.className = 'sunday-column-header__actions';
+        itemActions.appendChild(createSortButton('item', 'Item'));
+        itemHeaderWrapper.append(itemTitle, itemActions);
+        titleHeader.appendChild(itemHeaderWrapper);
+        const itemResizer = document.createElement('button');
+        itemResizer.type = 'button';
+        itemResizer.className = 'sunday-column-resizer';
+        itemResizer.dataset.columnId = 'item';
+        itemResizer.setAttribute('aria-label', 'Ajustar largura da coluna de itens');
+        itemResizer.tabIndex = 0;
+        itemResizer.innerHTML = ICON_RESIZE;
+        titleHeader.appendChild(itemResizer);
         head.appendChild(titleHeader);
+        setupColumnResize(itemResizer, 'item');
 
         orderedColumns.forEach((column) => {
             const span = document.createElement('span');
@@ -1093,15 +1672,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const headerActions = document.createElement('div');
             headerActions.className = 'sunday-column-header__actions';
-            if (column.column_type !== 'observation') {
-                const menuBtn = document.createElement('button');
-                menuBtn.type = 'button';
-                menuBtn.dataset.action = 'column-menu';
-                menuBtn.dataset.columnId = column.id;
-                menuBtn.title = 'Opções da coluna';
-                menuBtn.innerHTML = ICON_MORE;
-                headerActions.appendChild(menuBtn);
-            }
+            const sortLabel = column.column_type === 'observation' ? 'Observação' : (column.name || 'Coluna');
+            const sortBtn = createSortButton(String(column.id), sortLabel);
+            headerActions.appendChild(sortBtn);
+
+            const menuBtn = document.createElement('button');
+            menuBtn.type = 'button';
+            menuBtn.dataset.action = 'column-menu';
+            menuBtn.dataset.columnId = column.id;
+            menuBtn.title = 'Opções da coluna';
+            menuBtn.innerHTML = ICON_MORE;
+            headerActions.appendChild(menuBtn);
 
             let dragHandle = null;
             if (column.column_type !== 'observation') {
@@ -1156,10 +1737,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return btn;
         };
 
-        (group.items || [])
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .forEach((item) => {
+        const sortedItems = getGroupItemsWithSort(group);
+        sortedItems.forEach((item) => {
                 const row = document.createElement('div');
                 row.className = 'sunday-table__row';
                 row.dataset.itemId = item.id;
@@ -1401,7 +1980,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         columnWidthState.set(activeColumnResize.columnId, width);
-        const column = getColumnById(currentBoard, activeColumnResize.columnId);
+        if (activeColumnResize.columnId === 'item') {
+            applyItemColumnWidth(width);
+        }
+        const column = activeColumnResize.columnId === 'item' ? null : getColumnById(currentBoard, activeColumnResize.columnId);
         if (column) {
             if (!column.config) {
                 column.config = {};
@@ -1434,6 +2016,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (state.columnId === 'item') {
+            persistItemColumnWidth(currentBoard?.id ?? null, width);
+            columnWidthState.set('item', width);
+            applyColumnLayout();
+            return;
+        }
+
         try {
             await persistColumnWidth(state.columnId, width);
         } catch (error) {
@@ -1452,6 +2041,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function persistColumnWidth(columnId, width) {
+        if (columnId === 'item') {
+            persistItemColumnWidth(currentBoard?.id ?? null, width);
+            columnWidthState.set('item', clampColumnWidth(width));
+            return;
+        }
         if (!currentBoard) {
             return;
         }
@@ -1958,6 +2552,17 @@ document.addEventListener('DOMContentLoaded', () => {
         currentColumnMenu = null;
     }
 
+    function closeHiddenColumnsMenu() {
+        if (currentHiddenColumnsMenu) {
+            currentHiddenColumnsMenu.remove();
+            currentHiddenColumnsMenu = null;
+        }
+        if (hiddenColumnsMenuHandler) {
+            document.removeEventListener('click', hiddenColumnsMenuHandler, true);
+            hiddenColumnsMenuHandler = null;
+        }
+    }
+
     function closeGroupMenu() {
         if (currentGroupMenu) {
             currentGroupMenu.remove();
@@ -2002,6 +2607,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         closeColumnMenu();
+        closeHiddenColumnsMenu();
         closeGroupMenu();
         closeLabelPicker();
         closeInlineEditor();
@@ -2051,19 +2657,52 @@ document.addEventListener('DOMContentLoaded', () => {
             closeColumnMenu();
             return;
         }
+        if (!currentBoard) {
+            showToast('Selecione um quadro primeiro.');
+            return;
+        }
+        const column = getColumnById(currentBoard, columnId);
+        if (!column) {
+            showToast('Coluna não encontrada.');
+            return;
+        }
         closeBoardMenu();
         closeGroupMenu();
+        closeHiddenColumnsMenu();
         closeLabelPicker();
         closeInlineEditor();
         const menu = document.createElement('div');
         menu.className = 'sunday-board-menu';
-        menu.innerHTML = `
-            <ul>
-                <li data-action="rename-column" data-column-id="${columnId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Renomear</li>
-                <li data-action="customize-column" data-column-id="${columnId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M12 4V2"></path><path d="M12 20v2"></path><path d="M4.22 4.22 5.64 5.64"></path><path d="M18.36 18.36 19.78 19.78"></path><path d="M1 12h2"></path><path d="M21 12h2"></path><path d="M4.22 19.78 5.64 18.36"></path><path d="M18.36 5.64 19.78 4.22"></path></svg> Personalizar</li>
-                <li data-action="delete-column" data-column-id="${columnId}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14H7L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg> Excluir</li>
-            </ul>
-        `;
+        const list = document.createElement('ul');
+        const allowAdvancedActions = column.column_type !== 'observation';
+
+        if (allowAdvancedActions) {
+            const rename = document.createElement('li');
+            rename.dataset.action = 'rename-column';
+            rename.dataset.columnId = column.id;
+            rename.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg> Renomear';
+            list.appendChild(rename);
+
+            const customize = document.createElement('li');
+            customize.dataset.action = 'customize-column';
+            customize.dataset.columnId = column.id;
+            customize.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M12 4V2"></path><path d="M12 20v2"></path><path d="M4.22 4.22 5.64 5.64"></path><path d="M18.36 18.36 19.78 19.78"></path><path d="M1 12h2"></path><path d="M21 12h2"></path><path d="M4.22 19.78 5.64 18.36"></path><path d="M18.36 5.64 19.78 4.22"></path></svg> Personalizar';
+            list.appendChild(customize);
+
+            const remove = document.createElement('li');
+            remove.dataset.action = 'delete-column';
+            remove.dataset.columnId = column.id;
+            remove.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14H7L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg> Excluir';
+            list.appendChild(remove);
+        }
+
+        const hide = document.createElement('li');
+        hide.dataset.action = 'hide-column';
+        hide.dataset.columnId = column.id;
+        hide.innerHTML = `${ICON_EYE_OFF} Ocultar coluna`;
+        list.appendChild(hide);
+
+        menu.appendChild(list);
         document.body.appendChild(menu);
         currentColumnMenu = menu;
 
@@ -2092,6 +2731,132 @@ document.addEventListener('DOMContentLoaded', () => {
                 openColumnCustomizeModal(targetColumnId);
             } else if (action === 'delete-column') {
                 confirmDeleteColumn(targetColumnId);
+            } else if (action === 'hide-column') {
+                const updated = setColumnHidden(targetColumnId, true);
+                if (updated) {
+                    showToast('Coluna ocultada.');
+                }
+            }
+        });
+    }
+
+    function renderHiddenColumnsList(container) {
+        container.innerHTML = '';
+        if (!currentBoard?.id) {
+            container.innerHTML = '<p class="sunday-hidden-columns__empty">Selecione um quadro.</p>';
+            return;
+        }
+        const hiddenSet = hiddenColumnsState.get(currentBoard.id);
+        if (!hiddenSet?.size) {
+            container.innerHTML = '<p class="sunday-hidden-columns__empty">Nenhuma coluna oculta.</p>';
+            return;
+        }
+        const columnsMap = new Map((currentBoard.columns || []).map((column) => [column.id, column]));
+        let rendered = 0;
+        let changed = false;
+        Array.from(hiddenSet).forEach((columnId) => {
+            const column = columnsMap.get(columnId);
+            if (!column) {
+                hiddenSet.delete(columnId);
+                changed = true;
+                return;
+            }
+            rendered += 1;
+            const option = document.createElement('label');
+            option.className = 'sunday-hidden-columns__option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = column.id;
+            checkbox.dataset.hiddenColumnId = column.id;
+            checkbox.setAttribute('aria-label', `Reexibir coluna ${column.name || 'sem título'}`);
+            const text = document.createElement('span');
+            text.textContent = column.column_type === 'observation' ? 'Observação' : (column.name || 'Coluna sem título');
+            option.append(checkbox, text);
+            container.appendChild(option);
+        });
+        if (!rendered) {
+            hiddenColumnsState.delete(currentBoard.id);
+            persistHiddenColumnsState();
+            container.innerHTML = '<p class="sunday-hidden-columns__empty">Nenhuma coluna oculta.</p>';
+        } else if (changed) {
+            persistHiddenColumnsState();
+        }
+    }
+
+    function openHiddenColumnsMenu(trigger) {
+        if (!currentBoard) {
+            showToast('Selecione um quadro primeiro.');
+            return;
+        }
+        if (!hasHiddenColumns()) {
+            showToast('Nenhuma coluna oculta.');
+            return;
+        }
+        closeBoardMenu();
+        closeColumnMenu();
+        closeGroupMenu();
+        closeLabelPicker();
+        closeInlineEditor();
+        if (currentHiddenColumnsMenu) {
+            closeHiddenColumnsMenu();
+        }
+        const menu = document.createElement('div');
+        menu.className = 'sunday-board-menu sunday-hidden-columns-menu';
+        const wrapperEl = document.createElement('div');
+        wrapperEl.className = 'sunday-hidden-columns';
+        const header = document.createElement('header');
+        const title = document.createElement('strong');
+        title.textContent = 'Colunas ocultas';
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.dataset.action = 'restore-hidden-columns';
+        restoreBtn.textContent = 'Reexibir todas';
+        header.append(title, restoreBtn);
+        const list = document.createElement('div');
+        list.className = 'sunday-hidden-columns__list';
+        wrapperEl.append(header, list);
+        menu.appendChild(wrapperEl);
+        document.body.appendChild(menu);
+        currentHiddenColumnsMenu = menu;
+        renderHiddenColumnsList(list);
+        const triggerRect = trigger.getBoundingClientRect();
+        positionFloatingMenu(menu, triggerRect, { alignRight: false, offset: 10 });
+        hiddenColumnsMenuHandler = (event) => {
+            if (!menu.contains(event.target) && event.target !== trigger) {
+                closeHiddenColumnsMenu();
+                document.removeEventListener('click', hiddenColumnsMenuHandler, true);
+                hiddenColumnsMenuHandler = null;
+            }
+        };
+        setTimeout(() => document.addEventListener('click', hiddenColumnsMenuHandler, true), 0);
+        menu.addEventListener('click', (event) => {
+            const option = event.target.closest('[data-action]');
+            if (!option) {
+                return;
+            }
+            if (option.dataset.action === 'restore-hidden-columns') {
+                const restored = restoreAllHiddenColumns();
+                if (restored) {
+                    showToast('Todas as colunas foram reexibidas.');
+                }
+                closeHiddenColumnsMenu();
+            }
+        });
+        menu.addEventListener('change', (event) => {
+            const checkbox = event.target;
+            if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') {
+                return;
+            }
+            const columnId = Number(checkbox.value);
+            if (!Number.isFinite(columnId)) {
+                return;
+            }
+            if (setColumnHidden(columnId, false)) {
+                showToast('Coluna exibida novamente.');
+                renderHiddenColumnsList(list);
+                if (!hasHiddenColumns()) {
+                    closeHiddenColumnsMenu();
+                }
             }
         });
     }
@@ -2106,6 +2871,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         closeBoardMenu();
         closeColumnMenu();
+        closeHiddenColumnsMenu();
         closeLabelPicker();
         closeInlineEditor();
         const menu = document.createElement('div');
@@ -2651,6 +3417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         closeObservationSidebar();
         closeBoardMenu();
         closeColumnMenu();
+        closeHiddenColumnsMenu();
         closeGroupMenu();
         closeLabelPicker();
         closeInlineEditor();
@@ -2718,6 +3485,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             openModal(modalCreateGroup);
+            return;
+        }
+
+        if (action === 'manage-hidden-columns') {
+            openHiddenColumnsMenu(actionElement);
+            return;
+        }
+
+        if (action === 'sort-column') {
+            const columnKey = actionElement.dataset.sortColumn || '';
+            cycleSort(columnKey);
             return;
         }
 
@@ -3729,6 +4507,7 @@ document.addEventListener('DOMContentLoaded', () => {
             closeInlineEditor();
             closeBoardMenu();
             closeColumnMenu();
+            closeHiddenColumnsMenu();
             closeGroupMenu();
             if (observationSidebar?.classList.contains('is-open')) {
                 closeObservationSidebar();
