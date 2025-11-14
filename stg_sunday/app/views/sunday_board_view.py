@@ -115,10 +115,11 @@ async def update_group(
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo não encontrado")
 
-    board = group.board
     await repo.update_group(session, group, payload)
     await session.commit()
-    await session.refresh(board)
+    board = await repo.get_board(session, group.board_id)
+    if not board:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quadro não encontrado")
     return _board_to_schema(board)
 
 

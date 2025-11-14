@@ -200,6 +200,28 @@
                             </div>
                             <div class="sunday-label-list" data-label-list></div>
                         </div>
+                        <div class="sunday-date-config" data-column-date-options hidden>
+                            <div class="sunday-date-config__header">
+                                <h4>Formato da data</h4>
+                                <p>Defina como os valores desta coluna devem aparecer na tabela.</p>
+                            </div>
+                            <div class="sunday-date-config__options">
+                                <label class="sunday-date-option" data-date-option>
+                                    <input type="radio" name="date_format" value="full" checked>
+                                    <div>
+                                        <strong>Completa</strong>
+                                        <span>Exibe no formato padrão dia/mês/ano (31/12/2024).</span>
+                                    </div>
+                                </label>
+                                <label class="sunday-date-option" data-date-option>
+                                    <input type="radio" name="date_format" value="month_year">
+                                    <div>
+                                        <strong>Abreviada</strong>
+                                        <span>Exibe mês abreviado e ano (jan/2024).</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="sunday-modal__footer">
                         <button type="button" class="sunday-btn sunday-btn-ghost" data-modal-close>Cancelar</button>

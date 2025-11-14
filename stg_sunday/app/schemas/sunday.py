@@ -61,25 +61,28 @@ class BoardColumnOut(BaseModel):
 
     @model_validator(mode="before")
     def _parse_config(cls, values):
-        if not isinstance(values, dict):
-            obj = values
-            values = {
-                "id": getattr(obj, "id", None),
-                "board_id": getattr(obj, "board_id", None),
-                "name": getattr(obj, "name", None),
-                "column_type": getattr(obj, "column_type", None),
-                "position": getattr(obj, "position", None),
-                "config_json": getattr(obj, "config_json", None),
-                "config": getattr(obj, "config", None),
+        if isinstance(values, BaseModel):
+            raw_values = values.model_dump()
+        elif isinstance(values, dict):
+            raw_values = dict(values)
+        else:
+            raw_values = {
+                "id": getattr(values, "id", None),
+                "board_id": getattr(values, "board_id", None),
+                "name": getattr(values, "name", None),
+                "column_type": getattr(values, "column_type", None),
+                "position": getattr(values, "position", None),
+                "config_json": getattr(values, "config_json", None),
+                "config": getattr(values, "config", None),
             }
 
-        config_json = values.get("config_json")
-        if config_json and not values.get("config"):
+        config_json = raw_values.get("config_json")
+        if config_json and not raw_values.get("config"):
             try:
-                values["config"] = json.loads(config_json)
+                raw_values["config"] = json.loads(config_json)
             except json.JSONDecodeError:
-                values["config"] = None
-        return values
+                raw_values["config"] = None
+        return raw_values
 
     class Config:
         from_attributes = True

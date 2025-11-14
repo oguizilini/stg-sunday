@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const columnLabelsSection = modalManageColumn?.querySelector('[data-column-labels]');
     const columnLabelList = modalManageColumn?.querySelector('[data-label-list]');
     const columnSubmitButton = modalManageColumn?.querySelector('[data-column-submit]');
+    const columnDateOptionsSection = modalManageColumn?.querySelector('[data-column-date-options]');
 
     const itemBoardIdInput = modalCreateItem?.querySelector('[data-item-board-id]');
     const itemGroupIdInput = modalCreateItem?.querySelector('[data-item-group-id]');
@@ -44,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const observationSubscribers = observationSidebar?.querySelector('[data-observation-subscribers]');
     const observationEditor = observationSidebar?.querySelector('[data-observation-editor]');
     const observationToolbar = observationSidebar?.querySelector('[data-observation-toolbar]');
+    const observationScrollArea = observationSidebar?.querySelector('[data-observation-scroll]');
+    const observationPanelContent = observationSidebar?.querySelector('.observation-panel__content');
     const confirmModal = document.getElementById('modal-confirm');
     const confirmTitleEl = confirmModal?.querySelector('[data-confirm-title]');
     const confirmMessageEl = confirmModal?.querySelector('[data-confirm-message]');
@@ -103,6 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const HIDDEN_COLUMNS_STORAGE_KEY = 'stgSunday:hiddenColumns';
     const ITEM_COLUMN_STORAGE_KEY = 'stgSunday:itemColumnWidth';
     const ITEM_COLUMN_DEFAULT_WIDTH = 240;
+    const OBSERVATION_COLUMN_WIDTH = 96;
+    const DEFAULT_LABEL_NAME = 'Nova etiqueta';
+    const LABEL_COLOR_SWATCHES = ['#4361EE', '#21d4fd', '#43cea2', '#ff6b6b', '#f7b731', '#8e44ad', '#2eb872', '#ff8b94', '#ffa94d', '#6f5efb'];
+    const LABELS_PER_COLUMN = 5;
+    const labelRowState = new WeakMap();
     const DEFAULT_STATUS_LABELS = [
         { id: 'status-new', text: 'Novo', color: '#4c6ef5' },
         { id: 'status-progress', text: 'Em andamento', color: '#21d4fd' },
@@ -141,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sharedSyncingFromBar = false;
     const selectedRows = new Map();
     const columnWidthState = new Map();
-    const itemColumnWidthState = loadItemColumnWidthState();
+    let itemColumnWidthState;
     const hiddenColumnsState = loadHiddenColumnsState();
     const sortStateByBoard = new Map();
     const stickyOffsetAnchors = ['.header-container', '.main-header', '.sunday-toolbar', '[data-sticky-offset]'];
@@ -153,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const COLUMN_MIN_WIDTH = 180;
     const COLUMN_MAX_WIDTH = 520;
     const COLUMN_DEFAULT_WIDTH = 260;
+    itemColumnWidthState = loadItemColumnWidthState();
     let activeColumnResize = null;
     let columnDragState = null;
     let columnDragAvatar = null;
@@ -163,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentHiddenColumnsMenu = null;
     let hiddenColumnsMenuHandler = null;
     let currentSortState = null;
+    const DATE_FORMAT_FULL = 'full';
+    const DATE_FORMAT_MONTH_YEAR = 'month_year';
+    const DATE_MONTH_ABBREVIATIONS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
     async function fetchJSON(url, options) {
         const response = await fetch(url, options);
@@ -440,8 +452,14 @@ document.addEventListener('DOMContentLoaded', () => {
             sortStateByBoard.delete(board.id);
             return;
         }
-        const exists = board.columns?.some((column) => column.id === columnId);
+        const column = board.columns?.find((c) => c.id === columnId);
+        const exists = Boolean(column);
         if (!exists) {
+            currentSortState = null;
+            sortStateByBoard.delete(board.id);
+            return;
+        }
+        if (column?.column_type === 'observation') {
             currentSortState = null;
             sortStateByBoard.delete(board.id);
         }
@@ -920,6 +938,77 @@ document.addEventListener('DOMContentLoaded', () => {
             insertTextAtEditor(' 😊 ');
         }
     });
+
+    const observationNativeScrollSelector = '[data-observation-scroll], textarea';
+
+    const resolveObservationEventTarget = (target) => {
+        if (target instanceof Element) {
+            return target;
+        }
+        return target?.parentElement ?? null;
+    };
+
+    const isObservationPanelScrollContext = (target) => (
+        !!target &&
+        observationSidebar?.classList.contains('is-open') &&
+        observationPanelContent?.contains(target)
+    );
+
+    const hasNativeScrollTarget = (target) => (
+        target?.closest(observationNativeScrollSelector)
+    );
+
+    const redirectObservationScroll = (deltaY) => {
+        if (!observationScrollArea) {
+            return;
+        }
+        observationScrollArea.scrollTop += deltaY;
+    };
+
+    const handleObservationWheel = (event) => {
+        const target = resolveObservationEventTarget(event.target);
+        if (!isObservationPanelScrollContext(target)) {
+            return;
+        }
+        if (hasNativeScrollTarget(target)) {
+            event.stopPropagation();
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        redirectObservationScroll(event.deltaY);
+    };
+
+    let observationTouchStartY = 0;
+
+    const handleObservationTouchStart = (event) => {
+        const target = resolveObservationEventTarget(event.target);
+        if (!isObservationPanelScrollContext(target)) {
+            return;
+        }
+        observationTouchStartY = event.touches?.[0]?.clientY ?? 0;
+    };
+
+    const handleObservationTouchMove = (event) => {
+        const target = resolveObservationEventTarget(event.target);
+        if (!isObservationPanelScrollContext(target)) {
+            return;
+        }
+        if (hasNativeScrollTarget(target)) {
+            event.stopPropagation();
+            return;
+        }
+        const currentY = event.touches?.[0]?.clientY ?? observationTouchStartY;
+        const deltaY = observationTouchStartY - currentY;
+        observationTouchStartY = currentY;
+        event.preventDefault();
+        event.stopPropagation();
+        redirectObservationScroll(deltaY);
+    };
+
+    observationPanelContent?.addEventListener('wheel', handleObservationWheel, { passive: false });
+    observationPanelContent?.addEventListener('touchstart', handleObservationTouchStart, { passive: true });
+    observationPanelContent?.addEventListener('touchmove', handleObservationTouchMove, { passive: false });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -1425,6 +1514,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const validIds = new Set();
         columns.forEach((column) => {
             validIds.add(column.id);
+            if (column.column_type === 'observation') {
+                columnWidthState.set(column.id, OBSERVATION_COLUMN_WIDTH);
+                return;
+            }
             const widthFromConfig = Number(column?.config?.width);
             if (Number.isFinite(widthFromConfig)) {
                 columnWidthState.set(column.id, clampColumnWidth(widthFromConfig));
@@ -1455,6 +1548,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return columnWidthState.get(columnId);
         }
         const column = getColumnById(currentBoard, columnId);
+        if (column?.column_type === 'observation') {
+            columnWidthState.set(columnId, OBSERVATION_COLUMN_WIDTH);
+            return OBSERVATION_COLUMN_WIDTH;
+        }
         const widthFromConfig = Number(column?.config?.width);
         const width = Number.isFinite(widthFromConfig) ? clampColumnWidth(widthFromConfig) : COLUMN_DEFAULT_WIDTH;
         columnWidthState.set(columnId, width);
@@ -1470,8 +1567,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildGridTemplate(columns) {
         const parts = ['var(--sunday-checkbox-col-width, 46px)', 'var(--sunday-item-col-width, 240px)'];
         columns.forEach((column) => {
-            const width = getColumnWidth(column.id);
-            parts.push(`minmax(${COLUMN_MIN_WIDTH}px, ${width}px)`);
+            if (column.column_type === 'observation') {
+                parts.push(`${OBSERVATION_COLUMN_WIDTH}px`);
+            } else {
+                const width = getColumnWidth(column.id);
+                parts.push(`minmax(${COLUMN_MIN_WIDTH}px, ${width}px)`);
+            }
         });
         parts.push('64px');
         return parts.join(' ');
@@ -1648,19 +1749,29 @@ document.addEventListener('DOMContentLoaded', () => {
             headerWrapper.className = 'sunday-column-header';
             headerWrapper.dataset.columnId = column.id;
             headerWrapper.dataset.columnType = column.column_type;
+            const isObservation = column.column_type === 'observation';
+            if (isObservation) {
+                headerWrapper.classList.add('sunday-column-header--observation');
+            }
 
             const titleBtn = document.createElement('button');
             titleBtn.type = 'button';
             titleBtn.className = 'sunday-column-header__title';
-            if (column.column_type !== 'observation') {
+            if (!isObservation) {
                 titleBtn.dataset.action = 'rename-column';
+                titleBtn.dataset.columnId = column.id;
+            } else {
+                titleBtn.disabled = true;
+                titleBtn.tabIndex = -1;
+                titleBtn.classList.add('is-static');
+                titleBtn.setAttribute('aria-label', 'Observação');
             }
-            titleBtn.dataset.columnId = column.id;
 
             const titleSpan = document.createElement('span');
             titleSpan.className = 'sunday-column-title';
             if (column.column_type === 'observation') {
-                titleSpan.textContent = 'Observação';
+                titleSpan.textContent = '';
+                titleSpan.setAttribute('aria-hidden', 'true');
             } else if (column.name) {
                 titleSpan.textContent = column.name;
             } else {
@@ -1670,43 +1781,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
             titleBtn.appendChild(titleSpan);
 
-            const headerActions = document.createElement('div');
-            headerActions.className = 'sunday-column-header__actions';
-            const sortLabel = column.column_type === 'observation' ? 'Observação' : (column.name || 'Coluna');
-            const sortBtn = createSortButton(String(column.id), sortLabel);
-            headerActions.appendChild(sortBtn);
+            let headerActions = null;
+            if (!isObservation) {
+                headerActions = document.createElement('div');
+                headerActions.className = 'sunday-column-header__actions';
+                const sortLabel = column.name || 'Coluna';
+                const sortBtn = createSortButton(String(column.id), sortLabel);
+                headerActions.appendChild(sortBtn);
 
-            const menuBtn = document.createElement('button');
-            menuBtn.type = 'button';
-            menuBtn.dataset.action = 'column-menu';
-            menuBtn.dataset.columnId = column.id;
-            menuBtn.title = 'Opções da coluna';
-            menuBtn.innerHTML = ICON_MORE;
-            headerActions.appendChild(menuBtn);
+                const menuBtn = document.createElement('button');
+                menuBtn.type = 'button';
+                menuBtn.dataset.action = 'column-menu';
+                menuBtn.dataset.columnId = column.id;
+                menuBtn.title = 'Opções da coluna';
+                menuBtn.innerHTML = ICON_MORE;
+                headerActions.appendChild(menuBtn);
+            }
 
             let dragHandle = null;
-            if (column.column_type !== 'observation') {
+            if (!isObservation) {
                 headerWrapper.classList.add('is-reorderable');
                 dragHandle = headerWrapper; // usar toda a área do header como handle
             }
 
             headerWrapper.appendChild(titleBtn);
-            // Não adicionar botão de handle; a área inteira do header é o handle
-            headerWrapper.appendChild(headerActions);
+            if (headerActions) {
+                headerWrapper.appendChild(headerActions);
+            }
             span.appendChild(headerWrapper);
 
-            const resizer = document.createElement('button');
-            resizer.type = 'button';
-            resizer.className = 'sunday-column-resizer';
-            resizer.dataset.columnId = column.id;
-            resizer.setAttribute('aria-label', 'Ajustar largura da coluna');
-            resizer.tabIndex = 0;
-            resizer.innerHTML = ICON_RESIZE;
-            span.appendChild(resizer);
+            if (!isObservation) {
+                const resizer = document.createElement('button');
+                resizer.type = 'button';
+                resizer.className = 'sunday-column-resizer';
+                resizer.dataset.columnId = column.id;
+                resizer.setAttribute('aria-label', 'Ajustar largura da coluna');
+                resizer.tabIndex = 0;
+                resizer.innerHTML = ICON_RESIZE;
+                span.appendChild(resizer);
+                setupColumnResize(resizer, column.id);
+            }
 
             head.appendChild(span);
 
-            setupColumnResize(resizer, column.id);
             setupColumnDrag(headerWrapper, dragHandle, column);
         });
 
@@ -1858,7 +1975,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             cell.style.background = cellData.color_hex;
                             cell.style.color = '#0f172a';
                         }
-                        const value = formatCellValue(column.column_type, cellData.raw_value);
+                        const value = formatCellValue(column, cellData.raw_value);
                         if (value) {
                             cell.textContent = value;
                             cell.title = value;
@@ -2525,18 +2642,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return Number.isNaN(date.getTime()) ? null : date;
     }
 
-    function formatCellValue(type, rawValue) {
+    function resolveDateFormat(config) {
+        const format = config?.date_format;
+        return format === DATE_FORMAT_MONTH_YEAR ? DATE_FORMAT_MONTH_YEAR : DATE_FORMAT_FULL;
+    }
+
+    function formatDateByConfig(date, config) {
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+            return '';
+        }
+        const format = resolveDateFormat(config);
+        if (format === DATE_FORMAT_MONTH_YEAR) {
+            const month = DATE_MONTH_ABBREVIATIONS[date.getMonth()] || String(date.getMonth() + 1).padStart(2, '0');
+            return `${month}/${date.getFullYear()}`;
+        }
+        return date.toLocaleDateString('pt-BR');
+    }
+
+    function formatCellValue(columnOrType, rawValue, overrideConfig = null) {
         if (!rawValue) {
             return '';
         }
-        if (type === 'date') {
+        const columnType = typeof columnOrType === 'string' ? columnOrType : columnOrType?.column_type;
+        const columnConfig = overrideConfig || (typeof columnOrType === 'object' && columnOrType !== null ? columnOrType.config : null);
+        if (columnType === 'date') {
             const parsed = parseLocalDate(rawValue);
             if (parsed) {
-                return parsed.toLocaleDateString('pt-BR');
+                return formatDateByConfig(parsed, columnConfig);
             }
             const date = new Date(rawValue);
             if (!Number.isNaN(date.getTime())) {
-                return date.toLocaleDateString('pt-BR');
+                return formatDateByConfig(date, columnConfig);
             }
         }
         return rawValue;
@@ -2971,26 +3107,116 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setDateFormatSelection(value = DATE_FORMAT_FULL) {
+        if (!columnDateOptionsSection) {
+            return;
+        }
+        const normalized = value || DATE_FORMAT_FULL;
+        columnDateOptionsSection
+            .querySelectorAll('input[name="date_format"]')
+            .forEach((input) => {
+                input.checked = input.value === normalized;
+                input.closest('[data-date-option]')?.classList.toggle('is-selected', input.checked);
+            });
+    }
+
+    function renderDateFormatOptions(columnType, formatValue = DATE_FORMAT_FULL) {
+        if (!columnDateOptionsSection) {
+            return;
+        }
+        if (columnType === 'date') {
+            columnDateOptionsSection.hidden = false;
+            setDateFormatSelection(formatValue);
+        } else {
+            columnDateOptionsSection.hidden = true;
+        }
+    }
+
+    function getSelectedDateFormat() {
+        if (!columnDateOptionsSection) {
+            return DATE_FORMAT_FULL;
+        }
+        const checked = columnDateOptionsSection.querySelector('input[name="date_format"]:checked');
+        return checked?.value || DATE_FORMAT_FULL;
+    }
+
+    columnDateOptionsSection?.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || target.name !== 'date_format') {
+            return;
+        }
+        setDateFormatSelection(target.value);
+    });
+
     function addLabelRow(label = null) {
+        if (!columnLabelList) {
+            return;
+        }
         const row = document.createElement('div');
         row.className = 'sunday-label-row';
+        const colorValue = label?.color || '#4361EE';
+        const labelText = label?.text || '';
         row.innerHTML = `
-            <input type="text" name="label-text" placeholder="Nome da etiqueta" value="${label?.text || ''}" required maxlength="60">
-            <input type="color" name="label-color" value="${label?.color || '#4361EE'}">
-            <button type="button" data-action="remove-label" title="Remover etiqueta">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <button type="button" class="sunday-label-row__preview-btn" data-action="toggle-label-row">
+                <span data-label-preview-text>${labelText || DEFAULT_LABEL_NAME}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
+            <div class="sunday-label-row__editor" hidden>
+                <div class="sunday-label-row__inputs">
+                    <label class="sunday-field">
+                        <span>Nome</span>
+                        <input type="text" name="label-text" data-label-text placeholder="Nome da etiqueta" value="${labelText}" maxlength="60">
+                    </label>
+                    <div class="sunday-label-row__colors">
+                        <span class="sunday-label-row__colors-title">Cor</span>
+                        <div class="sunday-label-swatches" role="group" aria-label="Selecionar cor">
+                            ${LABEL_COLOR_SWATCHES.map((hex) => `<button type="button" class="sunday-label-swatch" data-label-swatch="${hex}" style="background:${hex}" title="Usar cor ${hex}"></button>`).join('')}
+                        </div>
+                        <input type="hidden" name="label-color" data-label-color value="${colorValue}">
+                    </div>
+                </div>
+                <div class="sunday-label-row__actions">
+                    <button type="button" class="sunday-label-row__done" data-action="confirm-label-edit" title="Concluir edição">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                    <button type="button" class="sunday-label-row__remove" data-action="remove-label" title="Remover etiqueta">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
         `;
         row.dataset.labelId = label?.id || '';
-        columnLabelList.appendChild(row);
+        appendLabelRowElement(row);
+        updateLabelPreview(row);
+        if (!label) {
+            setLabelRowOpen(row, true);
+            row.querySelector('[data-label-text]')?.focus();
+        }
+    }
+
+    function updateLabelPreview(row) {
+        if (!row) {
+            return;
+        }
+        const previewBtnText = row.querySelector('[data-label-preview-text]');
+        const previewButton = row.querySelector('.sunday-label-row__preview-btn');
+        const textInput = row.querySelector('[data-label-text]');
+        const colorInput = row.querySelector('[data-label-color]');
+        if (!textInput || !colorInput || !previewBtnText || !previewButton) {
+            return;
+        }
+        const labelName = (textInput.value || '').trim() || DEFAULT_LABEL_NAME;
+        const color = colorInput.value || '#4361EE';
+        previewBtnText.textContent = labelName;
+        setLabelRowColors(row, color);
     }
 
     function collectLabelData() {
         const rows = Array.from(columnLabelList.querySelectorAll('.sunday-label-row'));
         return rows
             .map((row, index) => {
-                const textInput = row.querySelector('input[name="label-text"]');
-                const colorInput = row.querySelector('input[name="label-color"]');
+                const textInput = row.querySelector('[data-label-text]');
+                const colorInput = row.querySelector('[data-label-color]');
                 const text = (textInput.value || '').trim();
                 if (!text) {
                     return null;
@@ -3000,6 +3226,126 @@ document.addEventListener('DOMContentLoaded', () => {
                 return { id, text, color };
             })
             .filter(Boolean);
+    }
+
+    function hexToRgb(hex) {
+        if (typeof hex !== 'string') {
+            return { r: 67, g: 97, b: 238 };
+        }
+        let normalized = hex.replace('#', '');
+        if (normalized.length === 3) {
+            normalized = normalized.split('').map((c) => c + c).join('');
+        }
+        if (normalized.length !== 6) {
+            return { r: 67, g: 97, b: 238 };
+        }
+        const num = parseInt(normalized, 16);
+        return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255,
+        };
+    }
+
+    function tintColor(hex, alpha = 0.15) {
+        const { r, g, b } = hexToRgb(hex);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function setLabelRowColors(row, color) {
+        if (!row) {
+            return;
+        }
+        const baseColor = color || '#4361EE';
+        const rowBg = tintColor(baseColor, 0.18);
+        const border = tintColor(baseColor, 0.45);
+        row.style.setProperty('--label-row-bg', rowBg);
+        row.style.setProperty('--label-row-border', border);
+        row.style.setProperty('--label-preview-bg', baseColor);
+        row.style.setProperty('--label-preview-color', '#ffffff');
+        row.style.setProperty('--label-preview-shadow', '0 1px 2px rgba(0,0,0,0.35)');
+    }
+
+    function createLabelColumn() {
+        if (!columnLabelList) {
+            return null;
+        }
+        const column = document.createElement('div');
+        column.className = 'sunday-label-column';
+        column.dataset.labelColumn = 'true';
+        columnLabelList.appendChild(column);
+        return column;
+    }
+
+    function getLabelColumns() {
+        if (!columnLabelList) {
+            return [];
+        }
+        return Array.from(columnLabelList.querySelectorAll('.sunday-label-column'));
+    }
+
+    function appendLabelRowElement(row) {
+        if (!columnLabelList) {
+            return;
+        }
+        const currentRows = columnLabelList.querySelectorAll('.sunday-label-row').length;
+        const columnIndex = Math.floor(currentRows / LABELS_PER_COLUMN);
+        let columns = getLabelColumns();
+        while (columns.length <= columnIndex) {
+            createLabelColumn();
+            columns = getLabelColumns();
+        }
+        columns[columnIndex]?.appendChild(row);
+    }
+
+    function rebalanceLabelColumns() {
+        if (!columnLabelList) {
+            return;
+        }
+        const rows = Array.from(columnLabelList.querySelectorAll('.sunday-label-row'));
+        columnLabelList.innerHTML = '';
+        if (!rows.length) {
+            return;
+        }
+        rows.forEach((row) => {
+            appendLabelRowElement(row);
+            if (labelRowState.get(row)) {
+                setLabelRowOpen(row, true);
+            } else {
+                setLabelRowOpen(row, false);
+            }
+        });
+    }
+
+    function setLabelRowOpen(row, open) {
+        if (!row) {
+            return;
+        }
+        const editor = row.querySelector('.sunday-label-row__editor');
+        if (!editor) {
+            return;
+        }
+        if (open) {
+            closeAllLabelRows(row);
+            row.classList.add('is-open');
+            editor.removeAttribute('hidden');
+        } else {
+            row.classList.remove('is-open');
+            editor.setAttribute('hidden', 'hidden');
+        }
+        labelRowState.set(row, open);
+    }
+
+    function closeAllLabelRows(exceptRow = null) {
+        if (!columnLabelList) {
+            return;
+        }
+        const rows = columnLabelList.querySelectorAll('.sunday-label-row.is-open');
+        rows.forEach((row) => {
+            if (row !== exceptRow) {
+                setLabelRowOpen(row, false);
+            }
+        });
     }
 
     function closeLabelPicker() {
@@ -3322,19 +3668,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.dataset.labelId = label.id;
                 button.dataset.cellId = cellData.id;
                 button.dataset.columnId = column.id;
+                button.classList.add('sunday-label-picker__option');
+                button.style.setProperty('--picker-label-color', label.color || '#4361EE');
                 button.innerHTML = `
-                    <span>${label.text}</span>
-                    <span class="sunday-label-picker__swatch" style="background:${label.color}"></span>
+                    <span class="sunday-label-picker__pill">${label.text}</span>
                 `;
                 picker.appendChild(button);
             });
+            const actions = document.createElement('div');
+            actions.className = 'sunday-label-picker__actions';
+
             const clear = document.createElement('button');
             clear.type = 'button';
+            clear.className = 'sunday-label-picker__action';
             clear.dataset.action = 'clear-label';
             clear.dataset.cellId = cellData.id;
             clear.dataset.columnId = column.id;
             clear.textContent = 'Limpar seleção';
-            picker.appendChild(clear);
+            actions.appendChild(clear);
+
+            const manage = document.createElement('button');
+            manage.type = 'button';
+            manage.className = 'sunday-label-picker__action';
+            manage.dataset.action = 'customize-column';
+            manage.dataset.columnId = column.id;
+            manage.textContent = 'Personalizar etiquetas';
+            actions.appendChild(manage);
+
+            picker.appendChild(actions);
         }
 
         document.body.appendChild(picker);
@@ -3367,6 +3728,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const colId = Number(btn.dataset.columnId || column.id);
                 updateCellValue(cellId, null, colId);
                 closeLabelPicker();
+            } else if (action === 'customize-column') {
+                const colId = Number(btn.dataset.columnId || column.id);
+                closeLabelPicker();
+                openColumnCustomizeModal(colId);
             }
             ev.stopPropagation();
         });
@@ -3466,7 +3831,44 @@ document.addEventListener('DOMContentLoaded', () => {
         event.stopPropagation();
     });
 
+    wrapper.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        if (target.matches('[data-label-text]') || target.matches('[data-label-color]')) {
+            const row = target.closest('.sunday-label-row');
+            updateLabelPreview(row);
+        }
+    });
+
     wrapper.addEventListener('click', async (event) => {
+        const swatch = event.target.closest?.('[data-label-swatch]');
+        if (swatch) {
+            const color = swatch.dataset.labelSwatch;
+            const row = swatch.closest('.sunday-label-row');
+            const colorInput = row?.querySelector('[data-label-color]');
+            if (color && colorInput) {
+                colorInput.value = color;
+                colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            return;
+        }
+
+        const toggleLabelRow = event.target.closest?.('[data-action="toggle-label-row"]');
+        if (toggleLabelRow) {
+            const row = toggleLabelRow.closest('.sunday-label-row');
+            if (!row) {
+                return;
+            }
+            const isOpen = row.classList.contains('is-open');
+            setLabelRowOpen(row, !isOpen);
+            if (!isOpen) {
+                row.querySelector('[data-label-text]')?.focus();
+            }
+            return;
+        }
+
         const actionElement = event.target.closest('[data-action]');
         if (!actionElement) {
             return;
@@ -3657,6 +4059,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'remove-label') {
             const row = actionElement.closest('.sunday-label-row');
             row?.remove();
+            rebalanceLabelColumns();
+            return;
+        }
+
+        if (action === 'confirm-label-edit') {
+            const row = actionElement.closest('.sunday-label-row');
+            updateLabelPreview(row);
+            setLabelRowOpen(row, false);
             return;
         }
 
@@ -3708,7 +4118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (column.column_type === 'status' || column.column_type === 'label') {
             openStatusPicker(cell, column, cellData);
         } else if (column.column_type === 'date') {
-            openDateEditor(cell, cellData);
+            openDateEditor(cell, cellData, column);
         } else {
             openTextEditor(cell, cellData);
         }
@@ -3763,7 +4173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('blur', commit, { once: true });
     }
 
-    function openDateEditor(cellEl, cellData) {
+    function openDateEditor(cellEl, cellData, column) {
         const initialValue = cellData.raw_value || '';
         const input = openInlineEditor(cellEl, initialValue, 'text');
         input.readOnly = true;
@@ -3777,7 +4187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             committed = true;
             await updateCellValue(cellData.id, value || null);
-            const displayValue = formatCellValue('date', value || null);
+            const displayValue = formatCellValue(column || 'date', value || null, column?.config || null);
             currentInlineEditorPreviousNodes = displayValue ? [document.createTextNode(displayValue)] : [];
             closeInlineEditor();
         };
@@ -4040,6 +4450,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             config = { labels };
+        } else if (columnType === 'date') {
+            config = { date_format: getSelectedDateFormat() };
         }
 
         try {
@@ -4077,7 +4489,10 @@ document.addEventListener('DOMContentLoaded', () => {
     columnTypeSelect?.addEventListener('change', (event) => {
         const type = event.target.value;
         renderColumnLabels(type, type === 'status' ? DEFAULT_STATUS_LABELS : []);
+        renderDateFormatOptions(type);
     });
+
+    renderDateFormatOptions(columnTypeSelect?.value || 'text');
 
     function startInlineColumnRename(columnId) {
         const column = getColumnById(currentBoard, columnId);
@@ -4178,6 +4593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const labels = column.config?.labels || [];
         renderColumnLabels(column.column_type, labels.length ? labels : (column.column_type === 'status' ? DEFAULT_STATUS_LABELS : []));
+        renderDateFormatOptions(column.column_type, column.config?.date_format || DATE_FORMAT_FULL);
         columnSubmitButton.textContent = 'Salvar coluna';
         openModal(modalManageColumn);
     }
@@ -4512,8 +4928,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (observationSidebar?.classList.contains('is-open')) {
                 closeObservationSidebar();
             }
+            closeAllLabelRows();
         }
     });
+
+    document.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) {
+            return;
+        }
+        if (!event.target.closest('.sunday-label-row')) {
+            closeAllLabelRows();
+        }
+    }, true);
 
     observationSidebar?.querySelector('[data-action="close-observation"]')?.addEventListener('click', closeObservationSidebar);
 
